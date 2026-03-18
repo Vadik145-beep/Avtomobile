@@ -1,0 +1,47 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: SSH Deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            set -e
+
+            # ── Navigate to project dir ───────────────────
+            cd /opt/avto-lead || { echo "Project dir not found"; exit 1; }
+
+            # ── Pull latest code ──────────────────────────
+            git pull origin main
+
+            # ── Write / refresh .env from secrets ─────────
+            # (secrets are injected via GitHub Actions env if needed)
+
+            # ── Rebuild and restart changed services ──────
+            docker compose -f docker-compose.prod.yml pull --quiet
+            docker compose -f docker-compose.prod.yml up -d --build --remove-orphans
+
+            # ── Run DB migrations ─────────────────────────
+            docker compose -f docker-compose.prod.yml exec -T backend alembic upgrade head
+
+            # ── Prune unused images ───────────────────────
+            docker image prune -f
+
+            echo "✅ Deploy finished at $(date)"
