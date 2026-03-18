@@ -1,0 +1,224 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-color: #f5f5f5;
+  color: #222222;
+  min-height: 100vh;
+}
+
+/* ── Layout ────────────────────────────────────────────────── */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.page-content {
+  flex: 1;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── Header ────────────────────────────────────────────────── */
+
+.app-header {
+  background: #ffffff;
+  border-bottom: 1px solid #e8e8e8;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+}
+
+.app-header--back {
+  gap: 12px;
+}
+
+.app-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: #2aabee;
+}
+
+.btn-back {
+  background: none;
+  border: none;
+  color: #2aabee;
+  font-size: 15px;
+  cursor: pointer;
+  padding: 0;
+}
+
+/* ── Section label ─────────────────────────────────────────── */
+
+.section-label {
+  font-size: 13px;
+  color: #888888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 8px;
+}
+
+/* ── Balance card ──────────────────────────────────────────── */
+
+.balance-card {
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.balance-number {
+  font-size: 52px;
+  font-weight: 700;
+  color: #222222;
+  line-height: 1;
+}
+
+.balance-unit {
+  font-size: 15px;
+  color: #888888;
+}
+
+/* ── Buttons ───────────────────────────────────────────────── */
+
+.btn-primary {
+  background: #2aabee;
+  color: #ffffff;
+  border: none;
+  border-radius: 12px;
+  height: 50px;
+  width: 100%;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.btn-primary:active {
+  opacity: 0.85;
+}
+
+.btn-select {
+  background: #2aabee;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 18px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  white-space: nowrap;
+}
+
+.btn-select:active {
+  opacity: 0.85;
+}
+
+/* ── Package card ──────────────────────────────────────────── */
+
+.package-card {
+  background: #ffffff;
+  border: 1.5px solid #e8e8e8;
+  border-radius: 14px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  padding: 16px;
+  position: relative;
+}
+
+.package-card--popular {
+  border-color: #2aabee;
+}
+
+.popular-badge {
+  position: absolute;
+  top: -1px;
+  right: 12px;
+  background: #2aabee;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 0 0 8px 8px;
+}
+
+.package-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.package-card__title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.package-card__price {
+  font-size: 16px;
+  font-weight: 700;
+  color: #222222;
+}
+
+.package-card__footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.package-card__amount {
+  font-size: 14px;
+  color: #888888;
+}
+
+/* ── Stub notice ───────────────────────────────────────────── */
+
+.stub-notice {
+  text-align: center;
+  font-size: 13px;
+  color: #aaaaaa;
+  line-height: 1.6;
+  margin-top: 8px;
+}
+
+/* ── Loading spinner ───────────────────────────────────────── */
+
+.spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid #e8e8e8;
+  border-top-color: #2aabee;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  margin: auto;
+  margin-top: 120px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── Error ─────────────────────────────────────────────────── */
+
+.error-text {
+  text-align: center;
+  color: #888888;
+  margin-top: 40px;
+  font-size: 15px;
+}
