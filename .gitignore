@@ -53,4 +53,4 @@ Dflbr/
 
 # Temp scripts
 _copy_key.py
-_*.py
+/_*.py
