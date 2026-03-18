@@ -9,6 +9,7 @@ from typing import Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy.dialects import postgresql
 
 revision: str = "0001"
 down_revision: Union[str, None] = None
@@ -18,13 +19,13 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     # --- Enum types ---
-    distributionmode = sa.Enum(
+    distributionmode = postgresql.ENUM(
         "exclusive", "speed", "coverage", name="distributionmode"
     )
-    transactiontype = sa.Enum(
+    transactiontype = postgresql.ENUM(
         "purchase", "debit", "bonus", name="transactiontype"
     )
-    deliverystatus = sa.Enum(
+    deliverystatus = postgresql.ENUM(
         "sent", "opened", "blocked", name="deliverystatus"
     )
 
@@ -62,7 +63,13 @@ def upgrade() -> None:
         sa.Column("recording_url", sa.Text(), nullable=True),
         sa.Column(
             "distribution_mode",
-            sa.Enum("exclusive", "speed", "coverage", name="distributionmode", create_type=False),
+            postgresql.ENUM(
+                "exclusive",
+                "speed",
+                "coverage",
+                name="distributionmode",
+                create_type=False,
+            ),
             nullable=False,
             server_default="coverage",
         ),
@@ -82,7 +89,13 @@ def upgrade() -> None:
         sa.Column("user_id", sa.Integer(), nullable=False),
         sa.Column(
             "type",
-            sa.Enum("purchase", "debit", "bonus", name="transactiontype", create_type=False),
+            postgresql.ENUM(
+                "purchase",
+                "debit",
+                "bonus",
+                name="transactiontype",
+                create_type=False,
+            ),
             nullable=False,
         ),
         sa.Column("amount", sa.Integer(), nullable=False),
@@ -107,7 +120,13 @@ def upgrade() -> None:
         sa.Column("user_id", sa.Integer(), nullable=False),
         sa.Column(
             "status",
-            sa.Enum("sent", "opened", "blocked", name="deliverystatus", create_type=False),
+            postgresql.ENUM(
+                "sent",
+                "opened",
+                "blocked",
+                name="deliverystatus",
+                create_type=False,
+            ),
             nullable=False,
             server_default="sent",
         ),
@@ -131,7 +150,13 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column(
             "mode",
-            sa.Enum("exclusive", "speed", "coverage", name="distributionmode", create_type=False),
+            postgresql.ENUM(
+                "exclusive",
+                "speed",
+                "coverage",
+                name="distributionmode",
+                create_type=False,
+            ),
             nullable=False,
             server_default="coverage",
         ),
