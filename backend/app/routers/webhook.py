@@ -30,11 +30,7 @@ async def receive_lidozvon(
     db: AsyncSession = Depends(get_db),
     redis=Depends(get_redis),
 ) -> dict[str, Any]:
-    if payload.test:
-        logger.info("Lidozvon test webhook call_id=%s — ignored", payload.call_id)
-        return {"status": "test_ignored"}
-
-    if payload.is_qualified is False:
+    if payload.is_qualified is False and not payload.test:
         logger.info(
             "Lead call_id=%s not qualified (%s) — skipped",
             payload.call_id,
@@ -65,10 +61,16 @@ async def receive_lidozvon(
         phone_encrypted=payload.phone,
         recording_url=payload.recording_url or "",
         is_qualified=payload.is_qualified,
+        is_test=bool(payload.test),
         distribution_mode=current_mode,
     )
     db.add(lead)
     await db.flush()
+
+    if payload.test:
+        await db.commit()
+        logger.info("Lidozvon test webhook call_id=%s — saved without distribution", payload.call_id)
+        return {"status": "test_saved", "id": lead.id}
 
     notified = await distribute_lead(lead, db, redis)
     await db.commit()

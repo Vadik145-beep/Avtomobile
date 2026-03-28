@@ -58,6 +58,7 @@ class LeadAdminOut(BaseModel):
     phone: str | None
     created_at: datetime
     distribution_mode: str
+    is_test: bool
     deliveries: list[DeliveryInfo]
 
     model_config = {"from_attributes": True}

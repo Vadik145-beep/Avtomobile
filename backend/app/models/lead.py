@@ -26,6 +26,7 @@ class Lead(Base):
     phone_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
     recording_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_qualified: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    is_test: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     distribution_mode: Mapped[DistributionMode] = mapped_column(
         Enum(DistributionMode, name="distributionmode", create_type=False),
         nullable=False,

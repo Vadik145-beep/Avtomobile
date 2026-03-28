@@ -7,7 +7,11 @@ import {
   Alert,
   Space,
   Tooltip,
+  Button,
+  Popconfirm,
+  message,
 } from 'antd'
+import { DeleteOutlined } from '@ant-design/icons'
 import type { TableColumnsType } from 'antd'
 import dayjs from 'dayjs'
 import client from '../api/client'
@@ -30,6 +34,7 @@ interface LeadAdminOut {
   phone: string | null
   created_at: string
   distribution_mode: string
+  is_test: boolean
   deliveries: DeliveryInfo[]
 }
 
@@ -77,73 +82,11 @@ function LeadStatus({ deliveries }: { deliveries: DeliveryInfo[] }) {
   )
 }
 
-const columns: TableColumnsType<LeadAdminOut> = [
-  {
-    title: 'Дата',
-    dataIndex: 'created_at',
-    width: 140,
-    render: (v: string) => dayjs(v).format('DD.MM.YYYY HH:mm'),
-    sorter: (a, b) => dayjs(a.created_at).unix() - dayjs(b.created_at).unix(),
-    defaultSortOrder: 'descend',
-  },
-  {
-    title: 'Марка / Город',
-    width: 180,
-    render: (_: unknown, r: LeadAdminOut) => (
-      <Space direction="vertical" size={0}>
-        <Text strong>{r.brand || '—'}</Text>
-        <Text type="secondary" style={{ fontSize: 12 }}>{r.city || '—'}</Text>
-      </Space>
-    ),
-  },
-  {
-    title: 'Телефон',
-    dataIndex: 'phone',
-    width: 150,
-    render: (v: string | null) => v ? <Text copyable>{v}</Text> : <Text type="secondary">—</Text>,
-  },
-  {
-    title: 'Режим',
-    dataIndex: 'distribution_mode',
-    width: 110,
-    render: (v: string) => {
-      const map: Record<string, { label: string; color: string }> = {
-        coverage: { label: 'Охват', color: 'blue' },
-        speed: { label: 'Скорость', color: 'orange' },
-        exclusive: { label: 'Эксклюзив', color: 'purple' },
-      }
-      const item = map[v] ?? { label: v, color: 'default' }
-      return <Tag color={item.color}>{item.label}</Tag>
-    },
-    filters: [
-      { text: 'Охват', value: 'coverage' },
-      { text: 'Скорость', value: 'speed' },
-      { text: 'Эксклюзив', value: 'exclusive' },
-    ],
-    onFilter: (value, record) => record.distribution_mode === value,
-  },
-  {
-    title: 'Статус / Покупатель',
-    width: 200,
-    render: (_: unknown, r: LeadAdminOut) => <LeadStatus deliveries={r.deliveries} />,
-    filters: [
-      { text: 'Не отправлен', value: 'none' },
-      { text: 'Отправлен', value: 'sent' },
-      { text: 'Открыт', value: 'opened' },
-    ],
-    onFilter: (value, record) => {
-      if (value === 'none') return record.deliveries.length === 0
-      if (value === 'opened') return record.deliveries.some((d) => d.status === 'opened')
-      if (value === 'sent') return record.deliveries.length > 0 && !record.deliveries.some((d) => d.status === 'opened')
-      return true
-    },
-  },
-]
-
 export default function Leads() {
   const [leads, setLeads] = useState<LeadAdminOut[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [deletingIds, setDeletingIds] = useState<Set<number>>(new Set())
 
   useEffect(() => {
     const load = async () => {
@@ -160,6 +103,120 @@ export default function Leads() {
     }
     load()
   }, [])
+
+  const handleDelete = async (id: number) => {
+    setDeletingIds((prev) => new Set(prev).add(id))
+    try {
+      await client.delete(`/leads/${id}`)
+      setLeads((prev) => prev.filter((l) => l.id !== id))
+      message.success('Лид удалён')
+    } catch {
+      message.error('Не удалось удалить лид')
+    } finally {
+      setDeletingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(id)
+        return next
+      })
+    }
+  }
+
+  const columns: TableColumnsType<LeadAdminOut> = [
+    {
+      title: 'Дата',
+      dataIndex: 'created_at',
+      width: 140,
+      render: (v: string) => dayjs(v).format('DD.MM.YYYY HH:mm'),
+      sorter: (a, b) => dayjs(a.created_at).unix() - dayjs(b.created_at).unix(),
+      defaultSortOrder: 'descend',
+    },
+    {
+      title: 'Марка / Город',
+      width: 180,
+      render: (_: unknown, r: LeadAdminOut) => (
+        <Space direction="vertical" size={0}>
+          <Space size={4}>
+            <Text strong>{r.brand || '—'}</Text>
+            {r.is_test && <Tag color="red" style={{ marginLeft: 4 }}>Тест</Tag>}
+          </Space>
+          <Text type="secondary" style={{ fontSize: 12 }}>{r.city || '—'}</Text>
+        </Space>
+      ),
+      filters: [
+        { text: 'Только тесты', value: 'test' },
+        { text: 'Только боевые', value: 'real' },
+      ],
+      onFilter: (value, record) => {
+        if (value === 'test') return record.is_test
+        if (value === 'real') return !record.is_test
+        return true
+      },
+    },
+    {
+      title: 'Телефон',
+      dataIndex: 'phone',
+      width: 150,
+      render: (v: string | null) => v ? <Text copyable>{v}</Text> : <Text type="secondary">—</Text>,
+    },
+    {
+      title: 'Режим',
+      dataIndex: 'distribution_mode',
+      width: 110,
+      render: (v: string) => {
+        const map: Record<string, { label: string; color: string }> = {
+          coverage: { label: 'Охват', color: 'blue' },
+          speed: { label: 'Скорость', color: 'orange' },
+          exclusive: { label: 'Эксклюзив', color: 'purple' },
+        }
+        const item = map[v] ?? { label: v, color: 'default' }
+        return <Tag color={item.color}>{item.label}</Tag>
+      },
+      filters: [
+        { text: 'Охват', value: 'coverage' },
+        { text: 'Скорость', value: 'speed' },
+        { text: 'Эксклюзив', value: 'exclusive' },
+      ],
+      onFilter: (value, record) => record.distribution_mode === value,
+    },
+    {
+      title: 'Статус / Покупатель',
+      width: 200,
+      render: (_: unknown, r: LeadAdminOut) => <LeadStatus deliveries={r.deliveries} />,
+      filters: [
+        { text: 'Не отправлен', value: 'none' },
+        { text: 'Отправлен', value: 'sent' },
+        { text: 'Открыт', value: 'opened' },
+      ],
+      onFilter: (value, record) => {
+        if (value === 'none') return record.deliveries.length === 0
+        if (value === 'opened') return record.deliveries.some((d) => d.status === 'opened')
+        if (value === 'sent') return record.deliveries.length > 0 && !record.deliveries.some((d) => d.status === 'opened')
+        return true
+      },
+    },
+    {
+      title: '',
+      key: 'actions',
+      width: 60,
+      render: (_: unknown, r: LeadAdminOut) => (
+        <Popconfirm
+          title="Удалить лид?"
+          description="Это действие нельзя отменить"
+          okText="Удалить"
+          cancelText="Отмена"
+          okButtonProps={{ danger: true }}
+          onConfirm={() => handleDelete(r.id)}
+        >
+          <Button
+            danger
+            type="text"
+            icon={<DeleteOutlined />}
+            loading={deletingIds.has(r.id)}
+          />
+        </Popconfirm>
+      ),
+    },
+  ]
 
   if (loading) return <Spin size="large" style={{ display: 'block', margin: '80px auto' }} />
   if (error) return <Alert type="error" message={error} />

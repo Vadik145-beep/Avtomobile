@@ -252,7 +252,27 @@ async def list_leads(
                 phone=lead.phone_encrypted,
                 created_at=lead.created_at,
                 distribution_mode=lead.distribution_mode.value,
+                is_test=lead.is_test,
                 deliveries=deliveries,
             )
         )
     return out
+
+
+@router.delete(
+    "/leads/{lead_id}",
+    dependencies=[Depends(get_current_admin)],
+    summary="Удалить лид",
+)
+async def delete_lead(
+    lead_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    result = await db.execute(select(Lead).where(Lead.id == lead_id))
+    lead = result.scalar_one_or_none()
+    if lead is None:
+        raise HTTPException(status_code=404, detail="Lead not found")
+
+    await db.delete(lead)
+    await db.commit()
+    return {"ok": True, "deleted_id": lead_id}
