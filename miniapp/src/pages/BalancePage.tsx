@@ -43,22 +43,24 @@ export default function BalancePage() {
         <div className="balance-card">
           <span className="balance-number">{user?.limit_count ?? 0}</span>
           <span className="balance-unit">
-            {pluralLimits(user?.limit_count ?? 0)}
+            {pluralClients(user?.limit_count ?? 0)}
           </span>
         </div>
 
-        <button className="btn-primary" onClick={() => navigate("/buy")}>
-          Пополнить баланс →
-        </button>
+        <div className="btn-center">
+          <button className="btn-primary" onClick={() => navigate("/buy")}>
+            Пополнить баланс →
+          </button>
+        </div>
       </main>
     </div>
   );
 }
 
-function pluralLimits(n: number): string {
+function pluralClients(n: number): string {
   const mod10 = n % 10;
   const mod100 = n % 100;
-  if (mod10 === 1 && mod100 !== 11) return "лимит";
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return "лимита";
-  return "лимитов";
+  if (mod10 === 1 && mod100 !== 11) return "клиент";
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return "клиента";
+  return "клиентов";
 }

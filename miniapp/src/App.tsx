@@ -8,6 +8,7 @@ declare global {
     Telegram: {
       WebApp: {
         ready: () => void;
+        expand: () => void;
         close: () => void;
         BackButton: {
           show: () => void;
@@ -30,6 +31,7 @@ declare global {
 export default function App() {
   useEffect(() => {
     window.Telegram?.WebApp?.ready();
+    window.Telegram?.WebApp?.expand();
   }, []);
 
   return (

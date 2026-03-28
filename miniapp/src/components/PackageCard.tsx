@@ -25,7 +25,7 @@ export default function PackageCard({
       </div>
 
       <div className="package-card__footer">
-        <span className="package-card__amount">{amount} лимитов</span>
+        <span className="package-card__amount">{amount} клиентов</span>
         <button
           className="btn-select"
           onClick={() => onSelect(amount)}

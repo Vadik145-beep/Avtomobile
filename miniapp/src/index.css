@@ -8,8 +8,8 @@
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background-color: #f5f5f5;
-  color: #222222;
+  background-color: #F0F2FF;
+  color: #1A1A2E;
   min-height: 100vh;
 }
 
@@ -33,7 +33,7 @@ body {
 
 .app-header {
   background: #ffffff;
-  border-bottom: 1px solid #e8e8e8;
+  border-bottom: 1px solid #E2E4F0;
   padding: 14px 16px;
   display: flex;
   align-items: center;
@@ -46,13 +46,13 @@ body {
 .app-title {
   font-size: 17px;
   font-weight: 600;
-  color: #2aabee;
+  color: #6C5CE7;
 }
 
 .btn-back {
   background: none;
   border: none;
-  color: #2aabee;
+  color: #6C5CE7;
   font-size: 15px;
   cursor: pointer;
   padding: 0;
@@ -62,19 +62,20 @@ body {
 
 .section-label {
   font-size: 13px;
-  color: #888888;
+  color: #7B7B9A;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-top: 8px;
+  text-align: center;
 }
 
 /* ── Balance card ──────────────────────────────────────────── */
 
 .balance-card {
   background: #ffffff;
-  border-radius: 16px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
-  padding: 32px 24px;
+  border-radius: 20px;
+  box-shadow: 0 4px 20px rgba(108, 92, 231, 0.12);
+  padding: 36px 24px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -82,41 +83,49 @@ body {
 }
 
 .balance-number {
-  font-size: 52px;
+  font-size: 56px;
   font-weight: 700;
-  color: #222222;
+  color: #6C5CE7;
   line-height: 1;
 }
 
 .balance-unit {
   font-size: 15px;
-  color: #888888;
+  color: #7B7B9A;
 }
 
 /* ── Buttons ───────────────────────────────────────────────── */
 
+.btn-center {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
 .btn-primary {
-  background: #2aabee;
+  background: linear-gradient(135deg, #6C5CE7, #A29BFE);
   color: #ffffff;
   border: none;
-  border-radius: 12px;
-  height: 50px;
+  border-radius: 14px;
+  height: 52px;
   width: 100%;
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: opacity 0.15s;
+  transition: opacity 0.15s, transform 0.1s;
+  letter-spacing: 0.2px;
 }
 
 .btn-primary:active {
   opacity: 0.85;
+  transform: scale(0.98);
 }
 
 .btn-select {
-  background: #2aabee;
+  background: linear-gradient(135deg, #6C5CE7, #A29BFE);
   color: #ffffff;
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 8px 18px;
   font-size: 14px;
   font-weight: 500;
@@ -133,22 +142,22 @@ body {
 
 .package-card {
   background: #ffffff;
-  border: 1.5px solid #e8e8e8;
-  border-radius: 14px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  border: 1.5px solid #E2E4F0;
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(108, 92, 231, 0.06);
   padding: 16px;
   position: relative;
 }
 
 .package-card--popular {
-  border-color: #2aabee;
+  border-color: #6C5CE7;
 }
 
 .popular-badge {
   position: absolute;
   top: -1px;
   right: 12px;
-  background: #2aabee;
+  background: linear-gradient(135deg, #6C5CE7, #A29BFE);
   color: #ffffff;
   font-size: 11px;
   font-weight: 600;
@@ -166,12 +175,13 @@ body {
 .package-card__title {
   font-size: 16px;
   font-weight: 600;
+  color: #1A1A2E;
 }
 
 .package-card__price {
   font-size: 16px;
   font-weight: 700;
-  color: #222222;
+  color: #6C5CE7;
 }
 
 .package-card__footer {
@@ -182,7 +192,7 @@ body {
 
 .package-card__amount {
   font-size: 14px;
-  color: #888888;
+  color: #7B7B9A;
 }
 
 /* ── Stub notice ───────────────────────────────────────────── */
@@ -190,7 +200,7 @@ body {
 .stub-notice {
   text-align: center;
   font-size: 13px;
-  color: #aaaaaa;
+  color: #7B7B9A;
   line-height: 1.6;
   margin-top: 8px;
 }
@@ -200,8 +210,8 @@ body {
 .spinner {
   width: 36px;
   height: 36px;
-  border: 3px solid #e8e8e8;
-  border-top-color: #2aabee;
+  border: 3px solid #E2E4F0;
+  border-top-color: #6C5CE7;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
   margin: auto;
@@ -218,7 +228,7 @@ body {
 
 .error-text {
   text-align: center;
-  color: #888888;
+  color: #7B7B9A;
   margin-top: 40px;
   font-size: 15px;
 }
