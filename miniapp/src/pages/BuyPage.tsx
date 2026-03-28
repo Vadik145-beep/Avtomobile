@@ -44,9 +44,6 @@ export default function BuyPage() {
   return (
     <div className="page">
       <header className="app-header app-header--back">
-        <button className="btn-back" onClick={() => navigate("/")}>
-          ← Назад
-        </button>
         <span className="app-title">Пополнить баланс</span>
       </header>
 
