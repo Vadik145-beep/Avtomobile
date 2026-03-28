@@ -1,11 +1,11 @@
 from datetime import datetime, timezone
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.lead import Lead
+from app.models.lead import DistributionMode, Lead
 from app.models.lead_delivery import DeliveryStatus, LeadDelivery
 from app.models.transaction import Transaction, TransactionType
 from app.models.user import User
@@ -72,6 +72,18 @@ async def open_contact(tg_id: int, lead_id: int, db: AsyncSession) -> str:
         )
 
         lead = delivery.lead
+
+        # В speed-режиме первый открывший забирает лид — остальные блокируются
+        if lead.distribution_mode == DistributionMode.speed:
+            await db.execute(
+                update(LeadDelivery)
+                .where(
+                    LeadDelivery.lead_id == lead_id,
+                    LeadDelivery.user_id != user.id,
+                    LeadDelivery.status == DeliveryStatus.sent,
+                )
+                .values(status=DeliveryStatus.blocked)
+            )
 
     return _decrypt_phone(lead.phone_encrypted)
 

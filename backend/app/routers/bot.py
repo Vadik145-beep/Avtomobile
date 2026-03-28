@@ -11,8 +11,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.core.credit import credit_limits
 from app.core.debit import open_contact
+from app.core.distributor import enqueue_user
 from app.core.security import verify_bot_secret
 from app.database import get_db
+from app.dependencies import get_redis
 from app.models.user import User
 from app.payments.factory import get_provider
 from app.payments.packages import PACKAGES
@@ -91,6 +93,7 @@ def _validate_init_data(init_data: str) -> dict:
 async def register_user(
     body: UserCreate,
     db: AsyncSession = Depends(get_db),
+    redis=Depends(get_redis),
 ) -> UserOut:
     result = await db.execute(select(User).where(User.telegram_id == body.telegram_id))
     user = result.scalar_one_or_none()
@@ -104,6 +107,8 @@ async def register_user(
         db.add(user)
         await db.commit()
         await db.refresh(user)
+        # Добавляем нового пользователя в очередь exclusive-режима
+        await enqueue_user(body.telegram_id, redis)
     else:
         # Update mutable fields if provided
         changed = False

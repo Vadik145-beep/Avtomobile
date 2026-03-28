@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Query, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -68,9 +68,22 @@ def verify_bot_secret(
 def verify_lidozvon_secret(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
 ) -> None:
-    """Validates Лидозвон webhook calls via LIDOZVON_SECRET."""
+    """Validates Лидозвон webhook calls via LIDOZVON_SECRET (Bearer header)."""
     if credentials is None or credentials.credentials != settings.lidozvon_secret:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid webhook secret",
+        )
+
+
+def verify_lidozvon_token(token: str = Query(default="")) -> None:
+    """Validates Лидозвон webhook calls via ?token= query parameter.
+
+    Лидозвон не поддерживает произвольные HTTP-заголовки, поэтому токен
+    передаётся прямо в URL: /webhook/lidozvon?token=<LIDOZVON_SECRET>
+    """
+    if not settings.lidozvon_secret or token != settings.lidozvon_secret:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid webhook token",
         )

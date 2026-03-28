@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.credit import credit_limits
 from app.core.distributor import distribute_lead
-from app.core.security import verify_lidozvon_secret
+from app.core.security import verify_lidozvon_token
 from app.database import get_db
 from app.dependencies import get_redis
 from app.models.distribution_setting import DistributionSetting
@@ -22,7 +22,7 @@ router = APIRouter(prefix="/webhook", tags=["webhook"])
 
 @router.post(
     "/lidozvon",
-    dependencies=[Depends(verify_lidozvon_secret)],
+    dependencies=[Depends(verify_lidozvon_token)],
     summary="Принять лид от Лидозвон",
 )
 async def receive_lidozvon(
