@@ -18,7 +18,7 @@ class Lead(Base):
     __tablename__ = "leads"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    call_id: Mapped[str | None] = mapped_column(String(36), nullable=True, unique=True, index=True)
+    call_id: Mapped[str | None] = mapped_column(String(128), nullable=True, unique=True, index=True)
     brand: Mapped[str | None] = mapped_column(String(255), nullable=True)
     city: Mapped[str | None] = mapped_column(String(255), nullable=True)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
