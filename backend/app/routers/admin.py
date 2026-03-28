@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -9,10 +10,13 @@ from app.core.security import create_access_token, get_current_admin, verify_pas
 from app.database import get_db
 from app.models.distribution_setting import DistributionSetting
 from app.models.lead import Lead
+from app.models.lead_delivery import LeadDelivery
 from app.models.transaction import Transaction, TransactionType
 from app.models.user import User
 from app.schemas.admin import (
     BonusIn,
+    DeliveryInfo,
+    LeadAdminOut,
     LoginIn,
     SettingsIn,
     SettingsOut,
@@ -203,3 +207,52 @@ async def user_transactions(
         .limit(limit)
     )
     return [TransactionOut.model_validate(t) for t in result.scalars().all()]
+
+
+@router.get(
+    "/leads",
+    response_model=list[LeadAdminOut],
+    dependencies=[Depends(get_current_admin)],
+    summary="Список лидов с информацией о доставке",
+)
+async def list_leads(
+    skip: int = 0,
+    limit: int = 50,
+    db: AsyncSession = Depends(get_db),
+) -> list[LeadAdminOut]:
+    result = await db.execute(
+        select(Lead)
+        .options(
+            selectinload(Lead.deliveries).selectinload(LeadDelivery.user)
+        )
+        .order_by(Lead.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+    )
+    leads = result.scalars().all()
+
+    out = []
+    for lead in leads:
+        deliveries = [
+            DeliveryInfo(
+                status=d.status.value,
+                username=d.user.username,
+                first_name=d.user.first_name,
+                telegram_id=d.user.telegram_id,
+                opened_at=d.opened_at,
+            )
+            for d in lead.deliveries
+        ]
+        out.append(
+            LeadAdminOut(
+                id=lead.id,
+                call_id=lead.call_id,
+                brand=lead.brand,
+                city=lead.city,
+                phone=lead.phone_encrypted,
+                created_at=lead.created_at,
+                distribution_mode=lead.distribution_mode.value,
+                deliveries=deliveries,
+            )
+        )
+    return out

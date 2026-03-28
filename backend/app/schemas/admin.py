@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, Field
 
 from app.models.lead import DistributionMode
@@ -36,3 +38,26 @@ class StatsOut(BaseModel):
     leads_today: int
     leads_week: int
     leads_month: int
+
+
+class DeliveryInfo(BaseModel):
+    status: str
+    username: str | None
+    first_name: str | None
+    telegram_id: int
+    opened_at: datetime | None
+
+    model_config = {"from_attributes": True}
+
+
+class LeadAdminOut(BaseModel):
+    id: int
+    call_id: str | None
+    brand: str | None
+    city: str | None
+    phone: str | None
+    created_at: datetime
+    distribution_mode: str
+    deliveries: list[DeliveryInfo]
+
+    model_config = {"from_attributes": True}

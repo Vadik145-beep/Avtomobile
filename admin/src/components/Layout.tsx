@@ -13,6 +13,7 @@ import {
   BarChartOutlined,
   LogoutOutlined,
   CarOutlined,
+  UnorderedListOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useLocation, Outlet } from 'react-router-dom'
 import { useAuthStore } from '../store/auth'
@@ -22,6 +23,7 @@ const { Text } = Typography
 
 const menuItems = [
   { key: '/', icon: <DashboardOutlined />, label: 'Dashboard' },
+  { key: '/leads', icon: <UnorderedListOutlined />, label: 'Лиды' },
   { key: '/modes', icon: <SettingOutlined />, label: 'Режимы' },
   { key: '/users', icon: <TeamOutlined />, label: 'Пользователи' },
   { key: '/analytics', icon: <BarChartOutlined />, label: 'Аналитика' },

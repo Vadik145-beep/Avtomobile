@@ -7,6 +7,7 @@ import { useAuthStore } from './store/auth'
 import AppLayout from './components/Layout'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
+import Leads from './pages/Leads'
 import Modes from './pages/Modes'
 import Users from './pages/Users'
 import Analytics from './pages/Analytics'
@@ -34,6 +35,7 @@ export default function App() {
               }
             >
               <Route index element={<Dashboard />} />
+              <Route path="leads" element={<Leads />} />
               <Route path="modes" element={<Modes />} />
               <Route path="users" element={<Users />} />
               <Route path="analytics" element={<Analytics />} />
