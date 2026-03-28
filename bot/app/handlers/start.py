@@ -5,7 +5,7 @@ from aiogram.filters import CommandStart
 from aiogram.types import Message
 
 from app.api_client import client
-from app.keyboards import main_menu_keyboard
+from app.keyboards import main_menu_keyboard, miniapp_keyboard
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -29,7 +29,11 @@ async def cmd_start(message: Message) -> None:
         f"Привет, {greeting}! 👋\n\n"
         "Добро пожаловать в <b>Авто-Лид</b> — сервис автомобильных лидов.\n\n"
         f"{limit_text}\n\n"
-        "Нажмите кнопку ниже, чтобы пополнить баланс или просмотреть статистику.",
+        "Используйте кнопки ниже для навигации.",
         reply_markup=main_menu_keyboard(),
         parse_mode="HTML",
+    )
+    await message.answer(
+        "Пополнить баланс или посмотреть статистику:",
+        reply_markup=miniapp_keyboard(),
     )

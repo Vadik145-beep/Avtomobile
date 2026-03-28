@@ -5,7 +5,7 @@ from aiogram import F, Router
 from aiogram.types import CallbackQuery
 
 from app.api_client import client
-from app.keyboards import main_menu_keyboard
+from app.keyboards import main_menu_inline_keyboard
 from app.templates import contact_opened_text
 
 router = Router()
@@ -43,7 +43,7 @@ async def callback_open_contact(callback: CallbackQuery) -> None:
             await callback.message.answer(
                 "❌ Недостаточно лимитов.\n\n"
                 "Пополните баланс в приложении 👇",
-                reply_markup=main_menu_keyboard(),
+                reply_markup=main_menu_inline_keyboard(),
             )
         elif exc.response.status_code == 409:
             await callback.message.answer(
