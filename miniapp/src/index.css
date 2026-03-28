@@ -24,7 +24,7 @@ body {
 
 .page-content {
   flex: 1;
-  padding: 24px 16px 16px;
+  padding: 32px 16px 16px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -35,7 +35,7 @@ body {
 .app-header {
   background: #ffffff;
   border-bottom: 1px solid #E2E4F0;
-  padding: 20px 16px 14px;
+  padding: 32px 16px 14px;
   display: flex;
   align-items: center;
 }
