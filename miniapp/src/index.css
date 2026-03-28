@@ -11,6 +11,7 @@ body {
   background-color: #F0F2FF;
   color: #1A1A2E;
   min-height: 100vh;
+  font-weight: 500;
 }
 
 /* ── Layout ────────────────────────────────────────────────── */
@@ -41,12 +42,16 @@ body {
 
 .app-header--back {
   gap: 12px;
+  position: relative;
 }
 
 .app-title {
   font-size: 17px;
   font-weight: 600;
   color: #6C5CE7;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
 .btn-back {
@@ -125,9 +130,9 @@ body {
   background: linear-gradient(135deg, #6C5CE7, #A29BFE);
   color: #ffffff;
   border: none;
-  border-radius: 10px;
-  padding: 8px 18px;
-  font-size: 14px;
+  border-radius: 12px;
+  padding: 11px 26px;
+  font-size: 15px;
   font-weight: 500;
   cursor: pointer;
   transition: opacity 0.15s;
