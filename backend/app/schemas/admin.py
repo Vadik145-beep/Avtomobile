@@ -62,3 +62,12 @@ class LeadAdminOut(BaseModel):
     deliveries: list[DeliveryInfo]
 
     model_config = {"from_attributes": True}
+
+
+class LeadCreateIn(BaseModel):
+    phone: str = Field(min_length=1)
+    brand: str | None = None
+    city: str | None = None
+    summary: str | None = None
+    distribution_mode: DistributionMode = DistributionMode.coverage
+    is_test: bool = False

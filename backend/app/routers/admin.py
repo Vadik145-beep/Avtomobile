@@ -6,8 +6,10 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.core.distributor import distribute_lead
 from app.core.security import create_access_token, get_current_admin, verify_password
 from app.database import get_db
+from app.dependencies import get_redis
 from app.models.distribution_setting import DistributionSetting
 from app.models.lead import Lead
 from app.models.lead_delivery import LeadDelivery
@@ -17,6 +19,7 @@ from app.schemas.admin import (
     BonusIn,
     DeliveryInfo,
     LeadAdminOut,
+    LeadCreateIn,
     LoginIn,
     SettingsIn,
     SettingsOut,
@@ -257,6 +260,48 @@ async def list_leads(
             )
         )
     return out
+
+
+@router.post(
+    "/leads",
+    response_model=LeadAdminOut,
+    dependencies=[Depends(get_current_admin)],
+    summary="Создать лид вручную",
+)
+async def create_lead(
+    body: LeadCreateIn,
+    db: AsyncSession = Depends(get_db),
+    redis=Depends(get_redis),
+) -> LeadAdminOut:
+    lead = Lead(
+        call_id=None,
+        brand=body.brand,
+        city=body.city,
+        summary=body.summary,
+        transcript=None,
+        phone_encrypted=body.phone,
+        recording_url="",
+        is_qualified=True,
+        is_test=body.is_test,
+        distribution_mode=body.distribution_mode,
+    )
+    db.add(lead)
+    await db.flush()
+    if not body.is_test:
+        await distribute_lead(lead, db, redis)
+    await db.commit()
+    await db.refresh(lead)
+    return LeadAdminOut(
+        id=lead.id,
+        call_id=lead.call_id,
+        brand=lead.brand,
+        city=lead.city,
+        phone=lead.phone_encrypted,
+        created_at=lead.created_at,
+        distribution_mode=lead.distribution_mode.value,
+        is_test=lead.is_test,
+        deliveries=[],
+    )
 
 
 @router.delete(

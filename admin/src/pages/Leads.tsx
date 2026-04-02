@@ -10,8 +10,13 @@ import {
   Button,
   Popconfirm,
   message,
+  Modal,
+  Form,
+  Input,
+  Select,
+  Switch,
 } from 'antd'
-import { DeleteOutlined } from '@ant-design/icons'
+import { DeleteOutlined, PlusOutlined } from '@ant-design/icons'
 import type { TableColumnsType } from 'antd'
 import dayjs from 'dayjs'
 import client from '../api/client'
@@ -82,11 +87,23 @@ function LeadStatus({ deliveries }: { deliveries: DeliveryInfo[] }) {
   )
 }
 
+interface LeadCreateValues {
+  phone: string
+  brand?: string
+  city?: string
+  summary?: string
+  distribution_mode: 'coverage' | 'speed' | 'exclusive'
+  is_test: boolean
+}
+
 export default function Leads() {
   const [leads, setLeads] = useState<LeadAdminOut[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [deletingIds, setDeletingIds] = useState<Set<number>>(new Set())
+  const [modalOpen, setModalOpen] = useState(false)
+  const [formLoading, setFormLoading] = useState(false)
+  const [form] = Form.useForm<LeadCreateValues>()
 
   useEffect(() => {
     const load = async () => {
@@ -103,6 +120,21 @@ export default function Leads() {
     }
     load()
   }, [])
+
+  const handleCreate = async (values: LeadCreateValues) => {
+    setFormLoading(true)
+    try {
+      const res = await client.post('/leads', values)
+      setLeads((prev) => [res.data, ...prev])
+      message.success('Лид добавлен')
+      setModalOpen(false)
+      form.resetFields()
+    } catch {
+      message.error('Не удалось добавить лид')
+    } finally {
+      setFormLoading(false)
+    }
+  }
 
   const handleDelete = async (id: number) => {
     setDeletingIds((prev) => new Set(prev).add(id))
@@ -222,13 +254,72 @@ export default function Leads() {
   if (error) return <Alert type="error" message={error} />
 
   return (
-    <Table
-      dataSource={leads}
-      columns={columns}
-      rowKey="id"
-      size="middle"
-      pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `Всего: ${t}` }}
-      locale={{ emptyText: 'Лидов пока нет' }}
-    />
+    <>
+      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-end' }}>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={() => setModalOpen(true)}
+        >
+          Добавить лид
+        </Button>
+      </div>
+
+      <Table
+        dataSource={leads}
+        columns={columns}
+        rowKey="id"
+        size="middle"
+        pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `Всего: ${t}` }}
+        locale={{ emptyText: 'Лидов пока нет' }}
+      />
+
+      <Modal
+        title="Добавить лид вручную"
+        open={modalOpen}
+        onCancel={() => { setModalOpen(false); form.resetFields() }}
+        onOk={() => form.submit()}
+        okText="Добавить"
+        cancelText="Отмена"
+        confirmLoading={formLoading}
+        destroyOnClose
+      >
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleCreate}
+          initialValues={{ distribution_mode: 'coverage', is_test: false }}
+        >
+          <Form.Item
+            name="phone"
+            label="Телефон"
+            rules={[{ required: true, message: 'Введите номер телефона' }]}
+          >
+            <Input placeholder="+7 999 123 45 67" />
+          </Form.Item>
+          <Form.Item name="brand" label="Марка автомобиля">
+            <Input placeholder="Toyota, BMW..." />
+          </Form.Item>
+          <Form.Item name="city" label="Город">
+            <Input placeholder="Москва" />
+          </Form.Item>
+          <Form.Item name="summary" label="Описание / транскрипт">
+            <Input.TextArea rows={3} placeholder="Краткое описание обращения" />
+          </Form.Item>
+          <Form.Item name="distribution_mode" label="Режим дистрибуции">
+            <Select
+              options={[
+                { value: 'coverage', label: 'Охват' },
+                { value: 'speed', label: 'Скорость' },
+                { value: 'exclusive', label: 'Эксклюзив' },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item name="is_test" label="Тестовый лид" valuePropName="checked">
+            <Switch />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </>
   )
 }
