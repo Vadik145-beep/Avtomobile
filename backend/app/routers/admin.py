@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -318,6 +318,7 @@ async def delete_lead(
     if lead is None:
         raise HTTPException(status_code=404, detail="Lead not found")
 
+    await db.execute(delete(LeadDelivery).where(LeadDelivery.lead_id == lead_id))
     await db.delete(lead)
     await db.commit()
     return {"ok": True, "deleted_id": lead_id}

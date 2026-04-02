@@ -37,7 +37,8 @@ class Lead(Base):
     )
 
     deliveries: Mapped[list["LeadDelivery"]] = relationship(  # noqa: F821
-        "LeadDelivery", back_populates="lead", lazy="select"
+        "LeadDelivery", back_populates="lead", lazy="select",
+        cascade="all, delete-orphan", passive_deletes=True,
     )
 
     def __repr__(self) -> str:
