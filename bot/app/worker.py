@@ -57,9 +57,12 @@ async def _send_lead_card(bot: Bot, data: dict) -> None:
 async def stream_worker(bot: Bot) -> None:
     """Читает Redis Stream leads:notify и рассылает карточки лидов."""
     r = aioredis.from_url(settings.redis_url, decode_responses=False)
-    last_id = b"0"
 
-    logger.info("Stream worker запущен, читаю %s", STREAM_KEY)
+    # Resume from last processed position; if none — start from current tail ($ = only new messages)
+    saved = await r.get(WORKER_LAST_ID_KEY)
+    last_id = saved if saved else b"$"
+
+    logger.info("Stream worker запущен, читаю %s с позиции %s", STREAM_KEY, last_id)
 
     while True:
         try:
@@ -72,6 +75,7 @@ async def stream_worker(bot: Bot) -> None:
                 for msg_id, data in entries:
                     await _send_lead_card(bot, data)
                     last_id = msg_id
+                    await r.set(WORKER_LAST_ID_KEY, last_id)
 
         except asyncio.CancelledError:
             logger.info("Stream worker остановлен.")
