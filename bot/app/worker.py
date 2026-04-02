@@ -18,30 +18,29 @@ async def _send_lead_card(bot: Bot, data: dict) -> None:
     """Отправляет карточку лида пользователю."""
     try:
         user_tg_id = int(data[b"user_tg_id"])
-        delivery_id = int(data[b"delivery_id"])
         lead_id = int(data[b"lead_id"])
+        delivery_id = int(data.get(b"delivery_id", b"0"))
         brand = data[b"brand"].decode()
         city = data[b"city"].decode()
         summary = data[b"summary"].decode()
+        phone = data.get(b"phone", b"").decode()
     except (KeyError, ValueError):
         logger.warning("Некорректные поля сообщения из стрима: %s", data)
         return
 
-    text = lead_card_text(brand, city, summary)
-    keyboard = lead_card_keyboard(delivery_id, lead_id)
+    text = lead_card_text(brand, city, summary, phone)
 
     try:
         await bot.send_message(
             chat_id=user_tg_id,
             text=text,
-            reply_markup=keyboard,
             parse_mode="HTML",
+            reply_markup=lead_card_keyboard(delivery_id, lead_id),
         )
         logger.info(
-            "Карточка лида отправлена: tg_id=%s lead_id=%s delivery_id=%s",
+            "Карточка лида отправлена: tg_id=%s lead_id=%s",
             user_tg_id,
             lead_id,
-            delivery_id,
         )
     except Exception:
         logger.exception(

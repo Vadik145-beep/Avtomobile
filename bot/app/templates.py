@@ -1,16 +1,10 @@
-def _mask_phone(phone: str) -> str:
-    """Разбивает номер нулевыми пробелами чтобы Telegram не добавлял кнопку контакта."""
-    return "\u200b".join(phone)
-
-
 def lead_card_text(brand: str, city: str, summary: str, phone: str = "") -> str:
     """Форматирует карточку лида для отправки в Telegram."""
-    lines = [
-        f"📍 {city}",
-        f"🚗 <b>{brand}</b>",
-    ]
+    lines = []
     if phone:
-        lines.append(f"📱 {_mask_phone(phone)}")
+        lines.append(f"📱 <code>{phone}</code>")
+    lines.append(f"📍 {city}")
+    lines.append(f"🚗 <b>{brand}</b>")
     lines.append(f"💬 {summary}")
     return "\n".join(lines)
 
