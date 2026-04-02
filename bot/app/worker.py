@@ -5,7 +5,7 @@ import redis.asyncio as aioredis
 from aiogram import Bot
 
 from app.config import settings
-from app.keyboards import lead_card_keyboard
+
 from app.templates import lead_card_text
 
 logger = logging.getLogger(__name__)
@@ -35,7 +35,6 @@ async def _send_lead_card(bot: Bot, data: dict) -> None:
             chat_id=user_tg_id,
             text=text,
             parse_mode="HTML",
-            reply_markup=lead_card_keyboard(delivery_id, lead_id),
         )
         logger.info(
             "Карточка лида отправлена: tg_id=%s lead_id=%s",
