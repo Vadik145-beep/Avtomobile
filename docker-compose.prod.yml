@@ -34,6 +34,8 @@ services:
       dockerfile: Dockerfile
     restart: always
     env_file: .env
+    environment:
+      ADMIN_PASSWORD_HASH: "$$2b$$12$$rVp2L8udolcXXrPowDXgneTGoA1BItRzBYUrhKzOyXg84XlrmDolq"
     depends_on:
       postgres:
         condition: service_healthy
@@ -93,6 +95,7 @@ services:
     depends_on:
       - backend
       - admin
+      - miniapp
     healthcheck:
       test: ["CMD", "nginx", "-t"]
       interval: 30s
