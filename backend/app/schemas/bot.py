@@ -33,3 +33,11 @@ class MiniAppBuyOut(BaseModel):
     payment_id: str | None
     invoice_url: str | None
     message: str
+
+
+class IcebreakerIn(BaseModel):
+    telegram_id: int
+
+
+class IcebreakerOut(BaseModel):
+    dispatched: int
