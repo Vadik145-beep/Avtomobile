@@ -20,15 +20,22 @@ async def _send_lead_card(bot: Bot, data: dict) -> None:
         user_tg_id = int(data[b"user_tg_id"])
         lead_id = int(data[b"lead_id"])
         delivery_id = int(data.get(b"delivery_id", b"0"))
-        brand = data[b"brand"].decode()
-        city = data[b"city"].decode()
-        summary = data[b"summary"].decode()
+        client_name = data.get(b"client_name", b"").decode()
+        country_origin = data.get(b"country_origin", b"").decode()
+        timing = data.get(b"timing", b"").decode()
+        city = data.get(b"city", b"").decode()
         phone = data.get(b"phone", b"").decode()
     except (KeyError, ValueError):
         logger.warning("Некорректные поля сообщения из стрима: %s", data)
         return
 
-    text = lead_card_text(brand, city, summary, phone)
+    text = lead_card_text(
+        client_name=client_name,
+        phone=phone,
+        country_origin=country_origin,
+        city=city,
+        timing=timing,
+    )
 
     try:
         await bot.send_message(

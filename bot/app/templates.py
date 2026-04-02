@@ -1,11 +1,22 @@
-def lead_card_text(brand: str, city: str, summary: str, phone: str = "") -> str:
+def lead_card_text(
+    client_name: str = "",
+    phone: str = "",
+    country_origin: str = "",
+    city: str = "",
+    timing: str = "",
+) -> str:
     """Форматирует карточку лида для отправки в Telegram."""
     lines = []
+    if client_name:
+        lines.append(f"👤 {client_name}")
     if phone:
         lines.append(f"📱 <code>{phone}</code>")
-    lines.append(f"📍 {city}")
-    lines.append(f"🚗 <b>{brand}</b>")
-    lines.append(f"💬 {summary}")
+    if country_origin:
+        lines.append(f"🌏 {country_origin}")
+    if city:
+        lines.append(f"📍 {city}")
+    if timing:
+        lines.append(f"⏱ {timing}")
     return "\n".join(lines)
 
 

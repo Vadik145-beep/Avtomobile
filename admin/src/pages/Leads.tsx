@@ -34,7 +34,9 @@ interface DeliveryInfo {
 interface LeadAdminOut {
   id: number
   call_id: string | null
-  brand: string | null
+  client_name: string | null
+  country_origin: string | null
+  timing: string | null
   city: string | null
   phone: string | null
   created_at: string
@@ -89,7 +91,9 @@ function LeadStatus({ deliveries }: { deliveries: DeliveryInfo[] }) {
 
 interface LeadCreateValues {
   phone: string
-  brand?: string
+  client_name?: string
+  country_origin?: string
+  timing?: string
   city?: string
   summary?: string
   distribution_mode: 'coverage' | 'speed' | 'exclusive'
@@ -163,12 +167,12 @@ export default function Leads() {
       defaultSortOrder: 'descend',
     },
     {
-      title: 'Марка / Город',
+      title: 'Клиент / Город',
       width: 180,
       render: (_: unknown, r: LeadAdminOut) => (
         <Space direction="vertical" size={0}>
           <Space size={4}>
-            <Text strong>{r.brand || '—'}</Text>
+            <Text strong>{r.client_name || '—'}</Text>
             {r.is_test && <Tag color="red" style={{ marginLeft: 4 }}>Тест</Tag>}
           </Space>
           <Text type="secondary" style={{ fontSize: 12 }}>{r.city || '—'}</Text>
@@ -183,6 +187,16 @@ export default function Leads() {
         if (value === 'real') return !record.is_test
         return true
       },
+    },
+    {
+      title: 'Страна / Сроки',
+      width: 150,
+      render: (_: unknown, r: LeadAdminOut) => (
+        <Space direction="vertical" size={0}>
+          <Text>{r.country_origin || '—'}</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>{r.timing || '—'}</Text>
+        </Space>
+      ),
     },
     {
       title: 'Телефон',
@@ -297,11 +311,24 @@ export default function Leads() {
           >
             <Input placeholder="+7 999 123 45 67" />
           </Form.Item>
-          <Form.Item name="brand" label="Марка автомобиля">
-            <Input placeholder="Toyota, BMW..." />
+          <Form.Item name="client_name" label="Имя клиента">
+            <Input placeholder="Иван" />
+          </Form.Item>
+          <Form.Item name="country_origin" label="Страна">
+            <Select
+              allowClear
+              placeholder="Выберите страну"
+              options={[
+                { value: 'Корея', label: 'Корея' },
+                { value: 'Китай', label: 'Китай' },
+              ]}
+            />
           </Form.Item>
           <Form.Item name="city" label="Город">
             <Input placeholder="Москва" />
+          </Form.Item>
+          <Form.Item name="timing" label="Сроки">
+            <Input placeholder="1-2 месяца" />
           </Form.Item>
           <Form.Item name="summary" label="Описание / транскрипт">
             <Input.TextArea rows={3} placeholder="Краткое описание обращения" />

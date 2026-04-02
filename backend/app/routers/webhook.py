@@ -54,7 +54,9 @@ async def receive_lidozvon(
     structured = payload.structured_data or {}
     lead = Lead(
         call_id=payload.call_id,
-        brand=structured.get("brand") or None,
+        client_name=structured.get("name") or None,
+        country_origin=structured.get("country") or None,
+        timing=structured.get("timing") or None,
         city=structured.get("city") or None,
         summary=payload.transcript,
         transcript=payload.transcript,

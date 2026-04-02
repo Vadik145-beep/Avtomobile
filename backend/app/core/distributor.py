@@ -116,10 +116,10 @@ async def _send_lead_to_user(user: User, lead: Lead, db: AsyncSession, redis: Re
             "lead_id": str(lead.id),
             "user_tg_id": str(user.telegram_id),
             "delivery_id": str(delivery.id),
-            "brand": lead.brand or "",
+            "client_name": lead.client_name or "",
+            "country_origin": lead.country_origin or "",
+            "timing": lead.timing or "",
             "city": lead.city or "",
-            "summary": lead.summary or "",
-            "recording_url": lead.recording_url or "",
             "phone": lead.phone_encrypted or "",
         },
     )

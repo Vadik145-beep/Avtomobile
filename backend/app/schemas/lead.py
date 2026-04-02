@@ -27,7 +27,9 @@ class LidozvonWebhookIn(BaseModel):
 
 class LeadOut(BaseModel):
     id: int
-    brand: str | None
+    client_name: str | None
+    country_origin: str | None
+    timing: str | None
     city: str | None
     summary: str | None
     recording_url: str | None
@@ -40,7 +42,9 @@ class LeadOut(BaseModel):
 class LeadCardOut(BaseModel):
     """Карточка лида для бота — без телефона."""
     id: int
-    brand: str | None
+    client_name: str | None
+    country_origin: str | None
+    timing: str | None
     city: str | None
     summary: str | None
     recording_url: str | None

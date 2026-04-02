@@ -250,7 +250,9 @@ async def list_leads(
             LeadAdminOut(
                 id=lead.id,
                 call_id=lead.call_id,
-                brand=lead.brand,
+                client_name=lead.client_name,
+                country_origin=lead.country_origin,
+                timing=lead.timing,
                 city=lead.city,
                 phone=lead.phone_encrypted,
                 created_at=lead.created_at,
@@ -275,7 +277,9 @@ async def create_lead(
 ) -> LeadAdminOut:
     lead = Lead(
         call_id=None,
-        brand=body.brand,
+        client_name=body.client_name,
+        country_origin=body.country_origin,
+        timing=body.timing,
         city=body.city,
         summary=body.summary,
         transcript=None,
@@ -294,7 +298,9 @@ async def create_lead(
     return LeadAdminOut(
         id=lead.id,
         call_id=lead.call_id,
-        brand=lead.brand,
+        client_name=lead.client_name,
+        country_origin=lead.country_origin,
+        timing=lead.timing,
         city=lead.city,
         phone=lead.phone_encrypted,
         created_at=lead.created_at,

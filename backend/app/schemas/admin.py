@@ -53,7 +53,9 @@ class DeliveryInfo(BaseModel):
 class LeadAdminOut(BaseModel):
     id: int
     call_id: str | None
-    brand: str | None
+    client_name: str | None
+    country_origin: str | None
+    timing: str | None
     city: str | None
     phone: str | None
     created_at: datetime
@@ -66,7 +68,9 @@ class LeadAdminOut(BaseModel):
 
 class LeadCreateIn(BaseModel):
     phone: str = Field(min_length=1)
-    brand: str | None = None
+    client_name: str | None = None
+    country_origin: str | None = None
+    timing: str | None = None
     city: str | None = None
     summary: str | None = None
     distribution_mode: DistributionMode = DistributionMode.coverage
