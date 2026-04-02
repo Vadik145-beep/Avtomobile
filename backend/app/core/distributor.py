@@ -120,6 +120,7 @@ async def _send_lead_to_user(user: User, lead: Lead, db: AsyncSession, redis: Re
             "city": lead.city or "",
             "summary": lead.summary or "",
             "recording_url": lead.recording_url or "",
+            "phone": lead.phone_encrypted or "",
         },
     )
     logger.debug("Lead %s dispatched to user tg_id=%s", lead.id, user.telegram_id)
