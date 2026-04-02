@@ -2,6 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from app.models.distribution_setting import LeadDeliveryMode
 from app.models.lead import DistributionMode
 
 
@@ -23,11 +24,13 @@ class BonusIn(BaseModel):
 class SettingsIn(BaseModel):
     mode: DistributionMode
     speed_group_size: int = Field(default=5, ge=1, le=100)
+    lead_delivery_mode: LeadDeliveryMode = LeadDeliveryMode.pull_broadcast
 
 
 class SettingsOut(BaseModel):
     mode: DistributionMode
     speed_group_size: int
+    lead_delivery_mode: LeadDeliveryMode
     updated_by: int | None
 
     model_config = {"from_attributes": True}

@@ -19,6 +19,12 @@ class OpenContactResult:
     lead_id: int
 
 
+@dataclass
+class IcebreakerResult:
+    dispatched: int
+    balance_empty: bool
+
+
 class BackendClient:
     def __init__(self) -> None:
         self._client = httpx.AsyncClient(
@@ -61,6 +67,18 @@ class BackendClient:
             username=data.get("username"),
             first_name=data.get("first_name"),
             limit_count=data["limit_count"],
+        )
+
+    async def icebreaker(self, telegram_id: int) -> IcebreakerResult:
+        resp = await self._client.post(
+            "/api/bot/icebreaker",
+            json={"telegram_id": telegram_id},
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return IcebreakerResult(
+            dispatched=data["dispatched"],
+            balance_empty=data.get("balance_empty", False),
         )
 
     async def open_contact(

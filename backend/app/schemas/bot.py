@@ -41,3 +41,4 @@ class IcebreakerIn(BaseModel):
 
 class IcebreakerOut(BaseModel):
     dispatched: int
+    balance_empty: bool = False  # True when limit_count == 0 prevented activation

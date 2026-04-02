@@ -3,20 +3,15 @@ import hmac
 import json
 import logging
 import urllib.parse
-from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.lead import Lead
-from app.models.lead_delivery import DeliveryStatus, LeadDelivery
-from app.models.transaction import Transaction, TransactionType
-
 from app.config import settings
 from app.core.credit import credit_limits
 from app.core.debit import open_contact
-from app.core.distributor import LEAD_NOTIFY_STREAM, enqueue_user
+from app.core.distributor import deliver_queued_leads_to_user, enqueue_user
 from app.core.security import verify_bot_secret
 from app.database import get_db
 from app.dependencies import get_redis
@@ -161,7 +156,7 @@ async def bot_open_contact(
 @router.post(
     "/icebreaker",
     response_model=IcebreakerOut,
-    summary="Запустить ледокол — отправить пользователю лиды из БД",
+    summary="Запустить ледокол — активировать получение лидов",
 )
 async def bot_icebreaker(
     body: IcebreakerIn,
@@ -176,63 +171,14 @@ async def bot_icebreaker(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="user_not_found")
 
     if user.limit_count <= 0:
-        return IcebreakerOut(dispatched=0)
+        return IcebreakerOut(dispatched=0, balance_empty=True)
 
-    # Leads already delivered to this user
-    already_subq = (
-        select(LeadDelivery.lead_id)
-        .where(LeadDelivery.user_id == user.id)
-        .scalar_subquery()
-    )
+    # Mark icebreaker as active so new incoming leads are delivered in real-time
+    if not user.icebreaker_active:
+        user.icebreaker_active = True
 
-    limit = min(user.limit_count, 50)
-    leads_result = await db.execute(
-        select(Lead)
-        .where(Lead.is_test == False, Lead.id.not_in(already_subq))  # noqa: E712
-        .order_by(Lead.created_at.desc())
-        .limit(limit)
-    )
-    leads = leads_result.scalars().all()
-
-    dispatched = 0
-    for lead in leads:
-        if user.limit_count <= 0:
-            break
-
-        user.limit_count -= 1
-
-        delivery = LeadDelivery(
-            lead_id=lead.id,
-            user_id=user.id,
-            status=DeliveryStatus.opened,
-            opened_at=datetime.now(timezone.utc),
-        )
-        db.add(delivery)
-        db.add(
-            Transaction(
-                user_id=user.id,
-                type=TransactionType.debit,
-                amount=1,
-                comment=f"Ледокол: открытие контакта лида #{lead.id}",
-                source="icebreaker",
-            )
-        )
-        await db.flush()
-
-        await redis.xadd(
-            LEAD_NOTIFY_STREAM,
-            {
-                "lead_id": str(lead.id),
-                "user_tg_id": str(user.telegram_id),
-                "delivery_id": str(delivery.id),
-                "client_name": lead.client_name or "",
-                "country_origin": lead.country_origin or "",
-                "timing": lead.timing or "",
-                "city": lead.city or "",
-                "phone": lead.phone_encrypted or "",
-            },
-        )
-        dispatched += 1
+    # Deliver all queued (not yet seen) leads from the pool
+    dispatched = await deliver_queued_leads_to_user(user, db, redis)
 
     await db.commit()
     logger.info("Icebreaker: tg_id=%s dispatched=%s", body.telegram_id, dispatched)

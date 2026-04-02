@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.credit import credit_limits
-from app.core.distributor import distribute_lead
+from app.core.distributor import dispatch_lead_to_icebreaker_users
 from app.core.security import verify_lidozvon_token
 from app.database import get_db
 from app.dependencies import get_redis
@@ -74,7 +74,7 @@ async def receive_lidozvon(
         logger.info("Lidozvon test webhook call_id=%s — saved without distribution", payload.call_id)
         return {"status": "test_saved", "id": lead.id}
 
-    notified = await distribute_lead(lead, db, redis)
+    notified = await dispatch_lead_to_icebreaker_users(lead, db, redis)
     await db.commit()
 
     logger.info("Lead #%s (call_id=%s) received, notified %s users", lead.id, payload.call_id, notified)

@@ -6,7 +6,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.core.distributor import distribute_lead
+from app.core.distributor import dispatch_lead_to_icebreaker_users
 from app.core.security import create_access_token, get_current_admin, verify_password
 from app.database import get_db
 from app.dependencies import get_redis
@@ -117,6 +117,7 @@ async def update_settings(
 
     s.mode = body.mode
     s.speed_group_size = body.speed_group_size
+    s.lead_delivery_mode = body.lead_delivery_mode
     s.updated_by = None  # admin username, not tg_id; field is BigInteger so keep None
     await db.commit()
     await db.refresh(s)
@@ -292,7 +293,7 @@ async def create_lead(
     db.add(lead)
     await db.flush()
     if not body.is_test:
-        await distribute_lead(lead, db, redis)
+        await dispatch_lead_to_icebreaker_users(lead, db, redis)
     await db.commit()
     await db.refresh(lead)
     return LeadAdminOut(
