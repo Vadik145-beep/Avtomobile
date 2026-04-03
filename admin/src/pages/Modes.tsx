@@ -5,109 +5,150 @@ import {
   Typography,
   Alert,
   Spin,
-  Table,
-  Tag,
+  Button,
+  message,
+  Row,
+  Col,
 } from 'antd'
-import type { TableColumnsType } from 'antd'
-import dayjs from 'dayjs'
+import { TeamOutlined, UserOutlined, CheckCircleFilled } from '@ant-design/icons'
 import client from '../api/client'
 
-const { Title } = Typography
+const { Title, Text, Paragraph } = Typography
 
-type Mode = 'exclusive' | 'speed' | 'coverage'
+type LeadDeliveryMode = 'pull_broadcast' | 'pull_exclusive'
 
-interface LogEntry {
-  id: number
-  mode: Mode
-  speed_group_size: number
-  updated_at: string
-  updated_by: string
+interface Settings {
+  lead_delivery_mode: LeadDeliveryMode
+  updated_by: number | null
 }
 
-const modeLabels: Record<Mode, string> = {
-  exclusive: 'Эксклюзив',
-  speed: 'Скорость',
-  coverage: 'Охват',
-}
-
-const modeColors: Record<Mode, string> = {
-  exclusive: 'gold',
-  speed: 'blue',
-  coverage: 'green',
-}
-
-const logColumns: TableColumnsType<LogEntry> = [
+const MODES: {
+  key: LeadDeliveryMode
+  label: string
+  description: string
+  icon: React.ReactNode
+  color: string
+  borderColor: string
+}[] = [
   {
-    title: 'Дата',
-    dataIndex: 'updated_at',
-    render: (v) => dayjs(v).format('DD.MM.YYYY HH:mm'),
-    width: 160,
+    key: 'pull_broadcast',
+    label: 'Всем',
+    description: 'Лид отправляется всем активным пользователям, у которых есть баланс. Каждый получает уведомление одновременно.',
+    icon: <TeamOutlined style={{ fontSize: 36 }} />,
+    color: '#1677ff',
+    borderColor: '#1677ff',
   },
   {
-    title: 'Режим',
-    dataIndex: 'mode',
-    render: (v: Mode) => <Tag color={modeColors[v]}>{modeLabels[v]}</Tag>,
-    width: 130,
-  },
-  {
-    title: 'Размер группы',
-    dataIndex: 'speed_group_size',
-    width: 140,
-    render: (v, row) => (row.mode === 'speed' ? v : '—'),
-  },
-  {
-    title: 'Изменил',
-    dataIndex: 'updated_by',
+    key: 'pull_exclusive',
+    label: 'Одному',
+    description: 'Лид отправляется только тому пользователю, до которого дошла очередь. Одноразовый — следующий лид уйдёт следующему.',
+    icon: <UserOutlined style={{ fontSize: 36 }} />,
+    color: '#52c41a',
+    borderColor: '#52c41a',
   },
 ]
 
 export default function Modes() {
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [log, setLog] = useState<LogEntry[]>([])
+  const [current, setCurrent] = useState<LeadDeliveryMode>('pull_broadcast')
+
+  const load = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await client.get<Settings>('/settings')
+      setCurrent(res.data.lead_delivery_mode)
+    } catch {
+      setError('Не удалось загрузить настройки')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    const load = async () => {
-      setLoading(true)
-      setError(null)
-      try {
-        const res = await client.get('/settings')
-        if (Array.isArray(res.data.log)) {
-          setLog(res.data.log)
-        }
-      } catch {
-        setError('Не удалось загрузить настройки')
-      } finally {
-        setLoading(false)
-      }
-    }
     load()
   }, [])
 
+  const handleSelect = async (mode: LeadDeliveryMode) => {
+    if (mode === current || saving) return
+    setSaving(true)
+    try {
+      const res = await client.put<Settings>('/settings', { lead_delivery_mode: mode })
+      setCurrent(res.data.lead_delivery_mode)
+      message.success('Режим обновлён')
+    } catch {
+      message.error('Не удалось сохранить режим')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   if (loading) return <Spin size="large" style={{ display: 'block', margin: '80px auto' }} />
-  if (error) return <Alert type="error" message={error} />
+  if (error) return <Alert type="error" message={error} action={<Button size="small" onClick={load}>Повторить</Button>} />
 
   return (
     <Space direction="vertical" size={24} style={{ width: '100%' }}>
-      {log.length > 0 && (
-        <Card title="Лог смен режима">
-          <Table
-            dataSource={log}
-            columns={logColumns}
-            rowKey="id"
-            size="small"
-            pagination={{ pageSize: 10 }}
-          />
-        </Card>
-      )}
+      <Card>
+        <Title level={4} style={{ marginBottom: 4 }}>Режим раздачи лидов</Title>
+        <Text type="secondary">
+          Выберите, как новые лиды будут распределяться между пользователями.
+        </Text>
+      </Card>
 
-      {log.length === 0 && (
-        <Card>
-          <Title level={5} style={{ margin: 0, color: '#999' }}>
-            История смен режима пуста
-          </Title>
-        </Card>
-      )}
+      <Row gutter={24}>
+        {MODES.map((mode) => {
+          const isActive = current === mode.key
+          return (
+            <Col xs={24} md={12} key={mode.key}>
+              <Card
+                hoverable={!isActive}
+                onClick={() => handleSelect(mode.key)}
+                style={{
+                  borderWidth: 2,
+                  borderColor: isActive ? mode.borderColor : '#d9d9d9',
+                  cursor: isActive ? 'default' : 'pointer',
+                  transition: 'border-color 0.2s',
+                  height: '100%',
+                }}
+                styles={{ body: { padding: 28 } }}
+              >
+                <Space direction="vertical" size={16} style={{ width: '100%' }}>
+                  <Space size={16} align="start">
+                    <span style={{ color: isActive ? mode.color : '#bfbfbf' }}>
+                      {mode.icon}
+                    </span>
+                    <div>
+                      <Space align="center" size={8}>
+                        <Title level={3} style={{ margin: 0, color: isActive ? mode.color : undefined }}>
+                          {mode.label}
+                        </Title>
+                        {isActive && (
+                          <CheckCircleFilled style={{ color: mode.color, fontSize: 20 }} />
+                        )}
+                      </Space>
+                      <Paragraph type="secondary" style={{ marginBottom: 0, marginTop: 4 }}>
+                        {mode.description}
+                      </Paragraph>
+                    </div>
+                  </Space>
+
+                  <Button
+                    type={isActive ? 'primary' : 'default'}
+                    disabled={isActive}
+                    loading={saving && current !== mode.key}
+                    onClick={(e) => { e.stopPropagation(); handleSelect(mode.key) }}
+                    style={{ width: '100%' }}
+                  >
+                    {isActive ? 'Активен' : 'Выбрать'}
+                  </Button>
+                </Space>
+              </Card>
+            </Col>
+          )
+        })}
+      </Row>
     </Space>
   )
 }

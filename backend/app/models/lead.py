@@ -8,12 +8,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base
 
 
-class DistributionMode(str, enum.Enum):
-    exclusive = "exclusive"
-    speed = "speed"
-    coverage = "coverage"
-
-
 class ModerationStatus(str, enum.Enum):
     pending = "pending"
     approved = "approved"
@@ -41,11 +35,6 @@ class Lead(Base):
         nullable=False,
         default=ModerationStatus.pending,
         server_default="pending",
-    )
-    distribution_mode: Mapped[DistributionMode] = mapped_column(
-        Enum(DistributionMode, name="distributionmode", create_type=False),
-        nullable=False,
-        default=DistributionMode.coverage,
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

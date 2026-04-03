@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.distribution_setting import DistributionSetting, LeadDeliveryMode
-from app.models.lead import DistributionMode, Lead
+from app.models.lead import Lead
 from app.models.lead_delivery import DeliveryStatus, LeadDelivery
 from app.models.transaction import Transaction, TransactionType
 from app.models.user import User
@@ -177,8 +177,6 @@ async def _get_current_settings(db: AsyncSession) -> DistributionSetting:
     settings = result.scalar_one_or_none()
     if settings is None:
         return DistributionSetting(
-            mode=DistributionMode.coverage,
-            speed_group_size=5,
             lead_delivery_mode=LeadDeliveryMode.pull_broadcast,
         )
     return settings

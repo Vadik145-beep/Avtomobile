@@ -34,7 +34,6 @@ interface LeadPending {
   city: string | null
   phone: string | null
   created_at: string
-  distribution_mode: string
   is_test: boolean
   moderation_status: string
 }
@@ -46,7 +45,6 @@ interface LeadCreateValues {
   timing?: string
   city?: string
   summary?: string
-  distribution_mode: 'coverage' | 'speed' | 'exclusive'
   is_test: boolean
 }
 
@@ -192,20 +190,6 @@ export default function Moderation() {
         v ? <Text copyable>{v}</Text> : <Text type="secondary">—</Text>,
     },
     {
-      title: 'Режим',
-      dataIndex: 'distribution_mode',
-      width: 110,
-      render: (v: string) => {
-        const map: Record<string, { label: string; color: string }> = {
-          coverage: { label: 'Охват', color: 'blue' },
-          speed: { label: 'Скорость', color: 'orange' },
-          exclusive: { label: 'Эксклюзив', color: 'purple' },
-        }
-        const item = map[v] ?? { label: v, color: 'default' }
-        return <Tag color={item.color}>{item.label}</Tag>
-      },
-    },
-    {
       title: 'Действия',
       key: 'actions',
       width: 120,
@@ -284,7 +268,7 @@ export default function Moderation() {
           form={form}
           layout="vertical"
           onFinish={handleCreate}
-          initialValues={{ distribution_mode: 'coverage', is_test: false }}
+          initialValues={{ is_test: false }}
         >
           <Form.Item
             name="phone"
@@ -314,15 +298,6 @@ export default function Moderation() {
           </Form.Item>
           <Form.Item name="summary" label="Описание / транскрипт">
             <Input.TextArea rows={3} placeholder="Краткое описание обращения" />
-          </Form.Item>
-          <Form.Item name="distribution_mode" label="Режим дистрибуции">
-            <Select
-              options={[
-                { value: 'coverage', label: 'Охват' },
-                { value: 'speed', label: 'Скорость' },
-                { value: 'exclusive', label: 'Эксклюзив' },
-              ]}
-            />
           </Form.Item>
           <Form.Item name="is_test" label="Тестовый лид" valuePropName="checked">
             <Switch />

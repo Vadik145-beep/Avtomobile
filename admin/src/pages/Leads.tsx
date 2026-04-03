@@ -16,7 +16,7 @@ import {
   Select,
   Switch,
 } from 'antd'
-import { DeleteOutlined, PlusOutlined, SyncOutlined } from '@ant-design/icons'
+import { DeleteOutlined, PlusOutlined, SyncOutlined, TeamOutlined, UserOutlined } from '@ant-design/icons'
 import type { TableColumnsType } from 'antd'
 import dayjs from 'dayjs'
 import client from '../api/client'
@@ -24,6 +24,8 @@ import client from '../api/client'
 const { Text } = Typography
 
 const POLL_INTERVAL = 30
+
+type LeadDeliveryMode = 'pull_broadcast' | 'pull_exclusive'
 
 interface DeliveryInfo {
   status: 'sent' | 'opened' | 'blocked'
@@ -42,7 +44,6 @@ interface LeadAdminOut {
   city: string | null
   phone: string | null
   created_at: string
-  distribution_mode: string
   is_test: boolean
   deliveries: DeliveryInfo[]
 }
@@ -98,8 +99,12 @@ interface LeadCreateValues {
   timing?: string
   city?: string
   summary?: string
-  distribution_mode: 'coverage' | 'speed' | 'exclusive'
   is_test: boolean
+}
+
+const MODE_LABEL: Record<LeadDeliveryMode, { label: string; icon: React.ReactNode; color: string }> = {
+  pull_broadcast: { label: 'Всем', icon: <TeamOutlined />, color: '#1677ff' },
+  pull_exclusive: { label: 'Одному', icon: <UserOutlined />, color: '#52c41a' },
 }
 
 export default function Leads() {
@@ -113,6 +118,16 @@ export default function Leads() {
   const [lastUpdated, setLastUpdated] = useState<dayjs.Dayjs | null>(null)
   const [countdown, setCountdown] = useState(POLL_INTERVAL)
   const countdownRef = useRef(POLL_INTERVAL)
+  const [currentMode, setCurrentMode] = useState<LeadDeliveryMode | null>(null)
+
+  const loadMode = useCallback(async () => {
+    try {
+      const res = await client.get<{ lead_delivery_mode: LeadDeliveryMode }>('/settings')
+      setCurrentMode(res.data.lead_delivery_mode)
+    } catch {
+      // non-critical, ignore
+    }
+  }, [])
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
@@ -132,6 +147,7 @@ export default function Leads() {
 
   useEffect(() => {
     load()
+    loadMode()
     const pollInterval = setInterval(() => load(true), POLL_INTERVAL * 1000)
 
     const tickInterval = setInterval(() => {
@@ -143,7 +159,7 @@ export default function Leads() {
       clearInterval(pollInterval)
       clearInterval(tickInterval)
     }
-  }, [load])
+  }, [load, loadMode])
 
   const handleCreate = async (values: LeadCreateValues) => {
     setFormLoading(true)
@@ -225,26 +241,6 @@ export default function Leads() {
       render: (v: string | null) => v ? <Text copyable>{v}</Text> : <Text type="secondary">—</Text>,
     },
     {
-      title: 'Режим',
-      dataIndex: 'distribution_mode',
-      width: 110,
-      render: (v: string) => {
-        const map: Record<string, { label: string; color: string }> = {
-          coverage: { label: 'Охват', color: 'blue' },
-          speed: { label: 'Скорость', color: 'orange' },
-          exclusive: { label: 'Эксклюзив', color: 'purple' },
-        }
-        const item = map[v] ?? { label: v, color: 'default' }
-        return <Tag color={item.color}>{item.label}</Tag>
-      },
-      filters: [
-        { text: 'Охват', value: 'coverage' },
-        { text: 'Скорость', value: 'speed' },
-        { text: 'Эксклюзив', value: 'exclusive' },
-      ],
-      onFilter: (value, record) => record.distribution_mode === value,
-    },
-    {
       title: 'Статус / Покупатель',
       width: 200,
       render: (_: unknown, r: LeadAdminOut) => <LeadStatus deliveries={r.deliveries} />,
@@ -287,6 +283,8 @@ export default function Leads() {
   if (loading) return <Spin size="large" style={{ display: 'block', margin: '80px auto' }} />
   if (error) return <Alert type="error" message={error} />
 
+  const modeInfo = currentMode ? MODE_LABEL[currentMode] : null
+
   return (
     <>
       <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -298,6 +296,15 @@ export default function Leads() {
             <Text type="secondary" style={{ fontSize: 12 }}>
               Обновлено в {lastUpdated.format('HH:mm:ss')} · следующее через {countdown} с
             </Text>
+          )}
+          {modeInfo && (
+            <Tag
+              icon={modeInfo.icon}
+              color={currentMode === 'pull_broadcast' ? 'blue' : 'green'}
+              style={{ fontSize: 13, padding: '2px 10px' }}
+            >
+              Режим: {modeInfo.label}
+            </Tag>
           )}
         </Space>
         <Button
@@ -332,7 +339,7 @@ export default function Leads() {
           form={form}
           layout="vertical"
           onFinish={handleCreate}
-          initialValues={{ distribution_mode: 'coverage', is_test: false }}
+          initialValues={{ is_test: false }}
         >
           <Form.Item
             name="phone"
@@ -362,15 +369,6 @@ export default function Leads() {
           </Form.Item>
           <Form.Item name="summary" label="Описание / транскрипт">
             <Input.TextArea rows={3} placeholder="Краткое описание обращения" />
-          </Form.Item>
-          <Form.Item name="distribution_mode" label="Режим дистрибуции">
-            <Select
-              options={[
-                { value: 'coverage', label: 'Охват' },
-                { value: 'speed', label: 'Скорость' },
-                { value: 'exclusive', label: 'Эксклюзив' },
-              ]}
-            />
           </Form.Item>
           <Form.Item name="is_test" label="Тестовый лид" valuePropName="checked">
             <Switch />

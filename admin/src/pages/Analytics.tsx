@@ -31,7 +31,7 @@ import client from '../api/client'
 const { RangePicker } = DatePicker
 const { Title, Text } = Typography
 
-type ModeFilter = 'all' | 'exclusive' | 'speed' | 'coverage'
+type ModeFilter = 'all' | 'pull_broadcast' | 'pull_exclusive'
 
 interface DailyPoint {
   date: string
@@ -49,9 +49,8 @@ interface AnalyticsData {
 
 const modeOptions = [
   { value: 'all', label: 'Все режимы' },
-  { value: 'exclusive', label: 'Эксклюзив' },
-  { value: 'speed', label: 'Скорость' },
-  { value: 'coverage', label: 'Охват' },
+  { value: 'pull_broadcast', label: 'Всем' },
+  { value: 'pull_exclusive', label: 'Одному' },
 ]
 
 const dailyColumns: TableColumnsType<DailyPoint> = [

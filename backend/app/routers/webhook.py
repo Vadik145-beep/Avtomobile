@@ -10,8 +10,7 @@ from app.core.distributor import dispatch_lead_to_icebreaker_users
 from app.core.security import verify_lidozvon_token
 from app.database import get_db
 from app.dependencies import get_redis
-from app.models.distribution_setting import DistributionSetting
-from app.models.lead import DistributionMode, Lead, ModerationStatus
+from app.models.lead import Lead, ModerationStatus
 from app.payments.factory import get_provider
 from app.schemas.lead import LidozvonWebhookIn, LeadOut
 
@@ -45,12 +44,6 @@ async def receive_lidozvon(
         logger.info("Duplicate lead call_id=%s — skipped", payload.call_id)
         return {"status": "duplicate"}
 
-    settings_result = await db.execute(select(DistributionSetting).limit(1))
-    settings = settings_result.scalar_one_or_none()
-    current_mode: DistributionMode = (
-        settings.mode if settings else DistributionMode.coverage
-    )
-
     structured = payload.structured_data or {}
     lead = Lead(
         call_id=payload.call_id,
@@ -64,7 +57,6 @@ async def receive_lidozvon(
         recording_url=payload.recording_url or "",
         is_qualified=payload.is_qualified,
         is_test=bool(payload.test),
-        distribution_mode=current_mode,
         moderation_status=ModerationStatus.pending,
     )
     db.add(lead)

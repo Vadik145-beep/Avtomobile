@@ -28,7 +28,6 @@ interface Stats {
   leads_month: number
   top_brands: { brand: string; count: number }[]
   top_cities: { city: string; count: number }[]
-  distribution_mode: string
 }
 
 export default function Dashboard() {
@@ -158,20 +157,6 @@ export default function Dashboard() {
         </Col>
       </Row>
 
-      <Row style={{ marginTop: 16 }}>
-        <Col>
-          <Typography.Text type="secondary">
-            Текущий режим дистрибуции:{' '}
-            <Typography.Text strong>
-              {stats?.distribution_mode === 'exclusive'
-                ? 'Эксклюзив'
-                : stats?.distribution_mode === 'speed'
-                ? 'Скорость'
-                : 'Охват'}
-            </Typography.Text>
-          </Typography.Text>
-        </Col>
-      </Row>
     </div>
   )
 }
