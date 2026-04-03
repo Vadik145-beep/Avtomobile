@@ -79,3 +79,4 @@ class LeadCreateIn(BaseModel):
     summary: str | None = None
     distribution_mode: DistributionMode = DistributionMode.coverage
     is_test: bool = False
+    pending_moderation: bool = False

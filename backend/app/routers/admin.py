@@ -380,6 +380,7 @@ async def create_lead(
     db: AsyncSession = Depends(get_db),
     redis=Depends(get_redis),
 ) -> LeadAdminOut:
+    moderation_status = ModerationStatus.pending if body.pending_moderation else ModerationStatus.approved
     lead = Lead(
         call_id=None,
         client_name=body.client_name,
@@ -393,11 +394,11 @@ async def create_lead(
         is_qualified=True,
         is_test=body.is_test,
         distribution_mode=body.distribution_mode,
-        moderation_status=ModerationStatus.approved,
+        moderation_status=moderation_status,
     )
     db.add(lead)
     await db.flush()
-    if not body.is_test:
+    if not body.is_test and not body.pending_moderation:
         await dispatch_lead_to_icebreaker_users(lead, db, redis)
     await db.commit()
     await db.refresh(lead)

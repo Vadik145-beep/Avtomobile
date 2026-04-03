@@ -10,8 +10,13 @@ import {
   Tooltip,
   message,
   Badge,
+  Modal,
+  Form,
+  Input,
+  Select,
+  Switch,
 } from 'antd'
-import { CheckOutlined, CloseOutlined } from '@ant-design/icons'
+import { CheckOutlined, CloseOutlined, PlusOutlined } from '@ant-design/icons'
 import type { TableColumnsType } from 'antd'
 import dayjs from 'dayjs'
 import client from '../api/client'
@@ -32,11 +37,25 @@ interface LeadPending {
   moderation_status: string
 }
 
+interface LeadCreateValues {
+  phone: string
+  client_name?: string
+  country_origin?: string
+  timing?: string
+  city?: string
+  summary?: string
+  distribution_mode: 'coverage' | 'speed' | 'exclusive'
+  is_test: boolean
+}
+
 export default function Moderation() {
   const [leads, setLeads] = useState<LeadPending[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [processingIds, setProcessingIds] = useState<Set<number>>(new Set())
+  const [modalOpen, setModalOpen] = useState(false)
+  const [formLoading, setFormLoading] = useState(false)
+  const [form] = Form.useForm<LeadCreateValues>()
 
   const load = async () => {
     setLoading(true)
@@ -88,6 +107,21 @@ export default function Moderation() {
         next.delete(id)
         return next
       })
+    }
+  }
+
+  const handleCreate = async (values: LeadCreateValues) => {
+    setFormLoading(true)
+    try {
+      const res = await client.post('/leads', { ...values, pending_moderation: true })
+      setLeads((prev) => [res.data, ...prev])
+      message.success('Лид добавлен на модерацию')
+      setModalOpen(false)
+      form.resetFields()
+    } catch {
+      message.error('Не удалось добавить лид')
+    } finally {
+      setFormLoading(false)
     }
   }
 
@@ -187,14 +221,19 @@ export default function Moderation() {
 
   return (
     <>
-      <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
-        <Badge count={leads.length} overflowCount={999} color="#faad14">
-          <Text strong style={{ fontSize: 15 }}>
-            Лиды на проверке
-          </Text>
-        </Badge>
-        <Button size="small" onClick={load}>
-          Обновить
+      <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <Badge count={leads.length} overflowCount={999} color="#faad14">
+            <Text strong style={{ fontSize: 15 }}>
+              Лиды на проверке
+            </Text>
+          </Badge>
+          <Button size="small" onClick={load}>
+            Обновить
+          </Button>
+        </div>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
+          Добавить лид
         </Button>
       </div>
 
@@ -206,6 +245,66 @@ export default function Moderation() {
         pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `Всего: ${t}` }}
         locale={{ emptyText: 'Нет лидов на модерации' }}
       />
+
+      <Modal
+        title="Добавить лид на модерацию"
+        open={modalOpen}
+        onCancel={() => { setModalOpen(false); form.resetFields() }}
+        onOk={() => form.submit()}
+        okText="Добавить"
+        cancelText="Отмена"
+        confirmLoading={formLoading}
+        destroyOnClose
+      >
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleCreate}
+          initialValues={{ distribution_mode: 'coverage', is_test: false }}
+        >
+          <Form.Item
+            name="phone"
+            label="Телефон"
+            rules={[{ required: true, message: 'Введите номер телефона' }]}
+          >
+            <Input placeholder="+7 999 123 45 67" />
+          </Form.Item>
+          <Form.Item name="client_name" label="Имя клиента">
+            <Input placeholder="Иван" />
+          </Form.Item>
+          <Form.Item name="country_origin" label="Страна">
+            <Select
+              allowClear
+              placeholder="Выберите страну"
+              options={[
+                { value: 'Корея', label: 'Корея' },
+                { value: 'Китай', label: 'Китай' },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item name="city" label="Город">
+            <Input placeholder="Москва" />
+          </Form.Item>
+          <Form.Item name="timing" label="Сроки">
+            <Input placeholder="1-2 месяца" />
+          </Form.Item>
+          <Form.Item name="summary" label="Описание / транскрипт">
+            <Input.TextArea rows={3} placeholder="Краткое описание обращения" />
+          </Form.Item>
+          <Form.Item name="distribution_mode" label="Режим дистрибуции">
+            <Select
+              options={[
+                { value: 'coverage', label: 'Охват' },
+                { value: 'speed', label: 'Скорость' },
+                { value: 'exclusive', label: 'Эксклюзив' },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item name="is_test" label="Тестовый лид" valuePropName="checked">
+            <Switch />
+          </Form.Item>
+        </Form>
+      </Modal>
     </>
   )
 }
