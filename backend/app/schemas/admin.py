@@ -3,7 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 from app.models.distribution_setting import LeadDeliveryMode
-from app.models.lead import DistributionMode, ModerationStatus
+from app.models.lead import ModerationStatus
 
 
 class LoginIn(BaseModel):
@@ -22,14 +22,10 @@ class BonusIn(BaseModel):
 
 
 class SettingsIn(BaseModel):
-    mode: DistributionMode
-    speed_group_size: int = Field(default=5, ge=1, le=100)
     lead_delivery_mode: LeadDeliveryMode = LeadDeliveryMode.pull_broadcast
 
 
 class SettingsOut(BaseModel):
-    mode: DistributionMode
-    speed_group_size: int
     lead_delivery_mode: LeadDeliveryMode
     updated_by: int | None
 
@@ -62,7 +58,6 @@ class LeadAdminOut(BaseModel):
     city: str | None
     phone: str | None
     created_at: datetime
-    distribution_mode: str
     is_test: bool
     moderation_status: ModerationStatus
     deliveries: list[DeliveryInfo]
@@ -77,6 +72,5 @@ class LeadCreateIn(BaseModel):
     timing: str | None = None
     city: str | None = None
     summary: str | None = None
-    distribution_mode: DistributionMode = DistributionMode.coverage
     is_test: bool = False
     pending_moderation: bool = False

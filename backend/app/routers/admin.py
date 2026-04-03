@@ -115,10 +115,8 @@ async def update_settings(
     if s is None:
         raise HTTPException(status_code=404, detail="Settings not found")
 
-    s.mode = body.mode
-    s.speed_group_size = body.speed_group_size
     s.lead_delivery_mode = body.lead_delivery_mode
-    s.updated_by = None  # admin username, not tg_id; field is BigInteger so keep None
+    s.updated_by = None
     await db.commit()
     await db.refresh(s)
     return SettingsOut.model_validate(s)
@@ -262,7 +260,6 @@ async def list_leads(
                 city=lead.city,
                 phone=lead.phone_encrypted,
                 created_at=lead.created_at,
-                distribution_mode=lead.distribution_mode.value,
                 is_test=lead.is_test,
                 moderation_status=lead.moderation_status,
                 deliveries=deliveries,
@@ -321,7 +318,6 @@ async def approve_lead(
         city=lead.city,
         phone=lead.phone_encrypted,
         created_at=lead.created_at,
-        distribution_mode=lead.distribution_mode.value,
         is_test=lead.is_test,
         moderation_status=lead.moderation_status,
         deliveries=deliveries,
@@ -362,7 +358,6 @@ async def reject_lead(
         city=lead.city,
         phone=lead.phone_encrypted,
         created_at=lead.created_at,
-        distribution_mode=lead.distribution_mode.value,
         is_test=lead.is_test,
         moderation_status=lead.moderation_status,
         deliveries=[],
@@ -393,7 +388,6 @@ async def create_lead(
         recording_url="",
         is_qualified=True,
         is_test=body.is_test,
-        distribution_mode=body.distribution_mode,
         moderation_status=moderation_status,
     )
     db.add(lead)
@@ -411,7 +405,6 @@ async def create_lead(
         city=lead.city,
         phone=lead.phone_encrypted,
         created_at=lead.created_at,
-        distribution_mode=lead.distribution_mode.value,
         is_test=lead.is_test,
         moderation_status=lead.moderation_status,
         deliveries=[],

@@ -17,9 +17,10 @@ import {
   Alert,
   App,
   Divider,
+  Tabs,
 } from 'antd'
 import type { TableColumnsType } from 'antd'
-import { SearchOutlined, GiftOutlined, ReloadOutlined } from '@ant-design/icons'
+import { SearchOutlined, GiftOutlined, ReloadOutlined, MinusCircleOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import client from '../api/client'
 
@@ -63,6 +64,8 @@ export default function Users() {
   const [txLoading, setTxLoading] = useState(false)
   const [bonusLoading, setBonusLoading] = useState(false)
   const [bonusForm] = Form.useForm()
+  const [deductLoading, setDeductLoading] = useState(false)
+  const [deductForm] = Form.useForm()
 
   const loadUsers = useCallback(async (p = page, sid = searchId) => {
     setLoading(true)
@@ -125,6 +128,31 @@ export default function Users() {
       message.error('Ошибка начисления бонуса')
     } finally {
       setBonusLoading(false)
+    }
+  }
+
+  const handleDeduct = async (values: { amount: number; comment: string }) => {
+    if (!selectedUser) return
+    setDeductLoading(true)
+    try {
+      await client.post(`/users/${selectedUser.telegram_id}/deduct`, values)
+      message.success(`Снято ${values.amount} лимитов`)
+      deductForm.resetFields()
+      setSelectedUser((prev) => prev ? { ...prev, limit_count: prev.limit_count - values.amount } : prev)
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.telegram_id === selectedUser.telegram_id
+            ? { ...u, limit_count: u.limit_count - values.amount }
+            : u
+        )
+      )
+      const res = await client.get(`/users/${selectedUser.telegram_id}/transactions`)
+      setTransactions(Array.isArray(res.data) ? res.data : res.data.items ?? [])
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      message.error(detail ?? 'Ошибка списания лимитов')
+    } finally {
+      setDeductLoading(false)
     }
   }
 
@@ -256,7 +284,7 @@ export default function Users() {
           ) : null
         }
         open={drawerOpen}
-        onClose={() => { setDrawerOpen(false); bonusForm.resetFields() }}
+        onClose={() => { setDrawerOpen(false); bonusForm.resetFields(); deductForm.resetFields() }}
         width={520}
         extra={
           selectedUser && (
@@ -270,27 +298,64 @@ export default function Users() {
       >
         {selectedUser && (
           <>
-            <Card size="small" title={<><GiftOutlined /> Начислить бонус</>} style={{ marginBottom: 16 }}>
-              <Form form={bonusForm} layout="inline" onFinish={handleBonus}>
-                <Form.Item
-                  name="amount"
-                  rules={[{ required: true, message: 'Укажите кол-во' }]}
-                >
-                  <InputNumber min={1} max={10000} placeholder="Кол-во" style={{ width: 110 }} />
-                </Form.Item>
-                <Form.Item
-                  name="comment"
-                  rules={[{ required: true, message: 'Введите комментарий' }]}
-                  style={{ flex: 1 }}
-                >
-                  <Input placeholder="Комментарий (обязательно)" />
-                </Form.Item>
-                <Form.Item>
-                  <Button type="primary" htmlType="submit" loading={bonusLoading}>
-                    Начислить
-                  </Button>
-                </Form.Item>
-              </Form>
+            <Card size="small" style={{ marginBottom: 16 }}>
+              <Tabs
+                defaultActiveKey="bonus"
+                items={[
+                  {
+                    key: 'bonus',
+                    label: <><GiftOutlined /> Начислить</>,
+                    children: (
+                      <Form form={bonusForm} layout="inline" onFinish={handleBonus}>
+                        <Form.Item
+                          name="amount"
+                          rules={[{ required: true, message: 'Укажите кол-во' }]}
+                        >
+                          <InputNumber min={1} max={10000} placeholder="Кол-во" style={{ width: 110 }} />
+                        </Form.Item>
+                        <Form.Item
+                          name="comment"
+                          rules={[{ required: true, message: 'Введите комментарий' }]}
+                          style={{ flex: 1 }}
+                        >
+                          <Input placeholder="Комментарий (обязательно)" />
+                        </Form.Item>
+                        <Form.Item>
+                          <Button type="primary" htmlType="submit" loading={bonusLoading}>
+                            Начислить
+                          </Button>
+                        </Form.Item>
+                      </Form>
+                    ),
+                  },
+                  {
+                    key: 'deduct',
+                    label: <><MinusCircleOutlined /> Снять</>,
+                    children: (
+                      <Form form={deductForm} layout="inline" onFinish={handleDeduct}>
+                        <Form.Item
+                          name="amount"
+                          rules={[{ required: true, message: 'Укажите кол-во' }]}
+                        >
+                          <InputNumber min={1} max={10000} placeholder="Кол-во" style={{ width: 110 }} />
+                        </Form.Item>
+                        <Form.Item
+                          name="comment"
+                          rules={[{ required: true, message: 'Введите комментарий' }]}
+                          style={{ flex: 1 }}
+                        >
+                          <Input placeholder="Комментарий (обязательно)" />
+                        </Form.Item>
+                        <Form.Item>
+                          <Button danger htmlType="submit" loading={deductLoading}>
+                            Снять
+                          </Button>
+                        </Form.Item>
+                      </Form>
+                    ),
+                  },
+                ]}
+              />
             </Card>
 
             <Divider orientation="left">История транзакций</Divider>
