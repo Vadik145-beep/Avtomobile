@@ -3,7 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 from app.models.distribution_setting import LeadDeliveryMode
-from app.models.lead import DistributionMode
+from app.models.lead import DistributionMode, ModerationStatus
 
 
 class LoginIn(BaseModel):
@@ -64,6 +64,7 @@ class LeadAdminOut(BaseModel):
     created_at: datetime
     distribution_mode: str
     is_test: bool
+    moderation_status: ModerationStatus
     deliveries: list[DeliveryInfo]
 
     model_config = {"from_attributes": True}

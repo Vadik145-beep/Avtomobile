@@ -11,7 +11,7 @@ from app.core.security import create_access_token, get_current_admin, verify_pas
 from app.database import get_db
 from app.dependencies import get_redis
 from app.models.distribution_setting import DistributionSetting
-from app.models.lead import Lead
+from app.models.lead import Lead, ModerationStatus
 from app.models.lead_delivery import LeadDelivery
 from app.models.transaction import Transaction, TransactionType
 from app.models.user import User
@@ -222,9 +222,10 @@ async def user_transactions(
 async def list_leads(
     skip: int = 0,
     limit: int = 50,
+    moderation_status: ModerationStatus | None = None,
     db: AsyncSession = Depends(get_db),
 ) -> list[LeadAdminOut]:
-    result = await db.execute(
+    query = (
         select(Lead)
         .options(
             selectinload(Lead.deliveries).selectinload(LeadDelivery.user)
@@ -233,6 +234,10 @@ async def list_leads(
         .offset(skip)
         .limit(limit)
     )
+    if moderation_status is not None:
+        query = query.where(Lead.moderation_status == moderation_status)
+
+    result = await db.execute(query)
     leads = result.scalars().all()
 
     out = []
@@ -259,10 +264,109 @@ async def list_leads(
                 created_at=lead.created_at,
                 distribution_mode=lead.distribution_mode.value,
                 is_test=lead.is_test,
+                moderation_status=lead.moderation_status,
                 deliveries=deliveries,
             )
         )
     return out
+
+
+@router.post(
+    "/leads/{lead_id}/approve",
+    response_model=LeadAdminOut,
+    dependencies=[Depends(get_current_admin)],
+    summary="Одобрить лид и запустить рассылку",
+)
+async def approve_lead(
+    lead_id: int,
+    db: AsyncSession = Depends(get_db),
+    redis=Depends(get_redis),
+) -> LeadAdminOut:
+    result = await db.execute(
+        select(Lead)
+        .options(selectinload(Lead.deliveries).selectinload(LeadDelivery.user))
+        .where(Lead.id == lead_id)
+    )
+    lead = result.scalar_one_or_none()
+    if lead is None:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    if lead.moderation_status != ModerationStatus.pending:
+        raise HTTPException(status_code=400, detail="Lead is not pending moderation")
+
+    lead.moderation_status = ModerationStatus.approved
+    await db.flush()
+
+    if not lead.is_test:
+        await dispatch_lead_to_icebreaker_users(lead, db, redis)
+
+    await db.commit()
+    await db.refresh(lead)
+
+    deliveries = [
+        DeliveryInfo(
+            status=d.status.value,
+            username=d.user.username,
+            first_name=d.user.first_name,
+            telegram_id=d.user.telegram_id,
+            opened_at=d.opened_at,
+        )
+        for d in lead.deliveries
+    ]
+    return LeadAdminOut(
+        id=lead.id,
+        call_id=lead.call_id,
+        client_name=lead.client_name,
+        country_origin=lead.country_origin,
+        timing=lead.timing,
+        city=lead.city,
+        phone=lead.phone_encrypted,
+        created_at=lead.created_at,
+        distribution_mode=lead.distribution_mode.value,
+        is_test=lead.is_test,
+        moderation_status=lead.moderation_status,
+        deliveries=deliveries,
+    )
+
+
+@router.post(
+    "/leads/{lead_id}/reject",
+    response_model=LeadAdminOut,
+    dependencies=[Depends(get_current_admin)],
+    summary="Отклонить лид",
+)
+async def reject_lead(
+    lead_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> LeadAdminOut:
+    result = await db.execute(
+        select(Lead)
+        .options(selectinload(Lead.deliveries).selectinload(LeadDelivery.user))
+        .where(Lead.id == lead_id)
+    )
+    lead = result.scalar_one_or_none()
+    if lead is None:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    if lead.moderation_status != ModerationStatus.pending:
+        raise HTTPException(status_code=400, detail="Lead is not pending moderation")
+
+    lead.moderation_status = ModerationStatus.rejected
+    await db.commit()
+    await db.refresh(lead)
+
+    return LeadAdminOut(
+        id=lead.id,
+        call_id=lead.call_id,
+        client_name=lead.client_name,
+        country_origin=lead.country_origin,
+        timing=lead.timing,
+        city=lead.city,
+        phone=lead.phone_encrypted,
+        created_at=lead.created_at,
+        distribution_mode=lead.distribution_mode.value,
+        is_test=lead.is_test,
+        moderation_status=lead.moderation_status,
+        deliveries=[],
+    )
 
 
 @router.post(
@@ -289,6 +393,7 @@ async def create_lead(
         is_qualified=True,
         is_test=body.is_test,
         distribution_mode=body.distribution_mode,
+        moderation_status=ModerationStatus.approved,
     )
     db.add(lead)
     await db.flush()
@@ -307,6 +412,7 @@ async def create_lead(
         created_at=lead.created_at,
         distribution_mode=lead.distribution_mode.value,
         is_test=lead.is_test,
+        moderation_status=lead.moderation_status,
         deliveries=[],
     )
 

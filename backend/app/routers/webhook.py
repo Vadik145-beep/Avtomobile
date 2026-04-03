@@ -11,7 +11,7 @@ from app.core.security import verify_lidozvon_token
 from app.database import get_db
 from app.dependencies import get_redis
 from app.models.distribution_setting import DistributionSetting
-from app.models.lead import DistributionMode, Lead
+from app.models.lead import DistributionMode, Lead, ModerationStatus
 from app.payments.factory import get_provider
 from app.schemas.lead import LidozvonWebhookIn, LeadOut
 
@@ -65,6 +65,7 @@ async def receive_lidozvon(
         is_qualified=payload.is_qualified,
         is_test=bool(payload.test),
         distribution_mode=current_mode,
+        moderation_status=ModerationStatus.pending,
     )
     db.add(lead)
     await db.flush()
@@ -74,10 +75,9 @@ async def receive_lidozvon(
         logger.info("Lidozvon test webhook call_id=%s — saved without distribution", payload.call_id)
         return {"status": "test_saved", "id": lead.id}
 
-    notified = await dispatch_lead_to_icebreaker_users(lead, db, redis)
     await db.commit()
 
-    logger.info("Lead #%s (call_id=%s) received, notified %s users", lead.id, payload.call_id, notified)
+    logger.info("Lead #%s (call_id=%s) received, pending moderation", lead.id, payload.call_id)
     return LeadOut.model_validate(lead).model_dump()
 
 

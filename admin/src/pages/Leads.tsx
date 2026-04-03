@@ -114,7 +114,7 @@ export default function Leads() {
       setLoading(true)
       setError(null)
       try {
-        const res = await client.get('/leads', { params: { limit: 200 } })
+        const res = await client.get('/leads', { params: { limit: 200, moderation_status: 'approved' } })
         setLeads(res.data)
       } catch {
         setError('Не удалось загрузить лиды')

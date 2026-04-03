@@ -14,6 +14,12 @@ class DistributionMode(str, enum.Enum):
     coverage = "coverage"
 
 
+class ModerationStatus(str, enum.Enum):
+    pending = "pending"
+    approved = "approved"
+    rejected = "rejected"
+
+
 class Lead(Base):
     __tablename__ = "leads"
 
@@ -30,6 +36,12 @@ class Lead(Base):
     recording_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_qualified: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     is_test: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    moderation_status: Mapped[ModerationStatus] = mapped_column(
+        Enum(ModerationStatus, name="moderationstatus", create_type=False),
+        nullable=False,
+        default=ModerationStatus.pending,
+        server_default="pending",
+    )
     distribution_mode: Mapped[DistributionMode] = mapped_column(
         Enum(DistributionMode, name="distributionmode", create_type=False),
         nullable=False,
