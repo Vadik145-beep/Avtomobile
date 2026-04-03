@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Table,
   Tag,
@@ -16,12 +16,14 @@ import {
   Select,
   Switch,
 } from 'antd'
-import { DeleteOutlined, PlusOutlined } from '@ant-design/icons'
+import { DeleteOutlined, PlusOutlined, SyncOutlined } from '@ant-design/icons'
 import type { TableColumnsType } from 'antd'
 import dayjs from 'dayjs'
 import client from '../api/client'
 
 const { Text } = Typography
+
+const POLL_INTERVAL = 30
 
 interface DeliveryInfo {
   status: 'sent' | 'opened' | 'blocked'
@@ -108,22 +110,40 @@ export default function Leads() {
   const [modalOpen, setModalOpen] = useState(false)
   const [formLoading, setFormLoading] = useState(false)
   const [form] = Form.useForm<LeadCreateValues>()
+  const [lastUpdated, setLastUpdated] = useState<dayjs.Dayjs | null>(null)
+  const [countdown, setCountdown] = useState(POLL_INTERVAL)
+  const countdownRef = useRef(POLL_INTERVAL)
+
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
+    setError(null)
+    try {
+      const res = await client.get('/leads', { params: { limit: 200, moderation_status: 'approved' } })
+      setLeads(res.data)
+      setLastUpdated(dayjs())
+      countdownRef.current = POLL_INTERVAL
+      setCountdown(POLL_INTERVAL)
+    } catch {
+      if (!silent) setError('Не удалось загрузить лиды')
+    } finally {
+      if (!silent) setLoading(false)
+    }
+  }, [])
 
   useEffect(() => {
-    const load = async () => {
-      setLoading(true)
-      setError(null)
-      try {
-        const res = await client.get('/leads', { params: { limit: 200, moderation_status: 'approved' } })
-        setLeads(res.data)
-      } catch {
-        setError('Не удалось загрузить лиды')
-      } finally {
-        setLoading(false)
-      }
-    }
     load()
-  }, [])
+    const pollInterval = setInterval(() => load(true), POLL_INTERVAL * 1000)
+
+    const tickInterval = setInterval(() => {
+      countdownRef.current = Math.max(0, countdownRef.current - 1)
+      setCountdown(countdownRef.current)
+    }, 1000)
+
+    return () => {
+      clearInterval(pollInterval)
+      clearInterval(tickInterval)
+    }
+  }, [load])
 
   const handleCreate = async (values: LeadCreateValues) => {
     setFormLoading(true)
@@ -269,7 +289,17 @@ export default function Leads() {
 
   return (
     <>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-end' }}>
+      <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Space size={12}>
+          <Button size="small" icon={<SyncOutlined />} onClick={() => load(false)}>
+            Обновить
+          </Button>
+          {lastUpdated && (
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              Обновлено в {lastUpdated.format('HH:mm:ss')} · следующее через {countdown} с
+            </Text>
+          )}
+        </Space>
         <Button
           type="primary"
           icon={<PlusOutlined />}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Table,
   Tag,
@@ -16,12 +16,14 @@ import {
   Select,
   Switch,
 } from 'antd'
-import { CheckOutlined, CloseOutlined, PlusOutlined } from '@ant-design/icons'
+import { CheckOutlined, CloseOutlined, PlusOutlined, SyncOutlined } from '@ant-design/icons'
 import type { TableColumnsType } from 'antd'
 import dayjs from 'dayjs'
 import client from '../api/client'
 
 const { Text } = Typography
+
+const POLL_INTERVAL = 30
 
 interface LeadPending {
   id: number
@@ -56,25 +58,42 @@ export default function Moderation() {
   const [modalOpen, setModalOpen] = useState(false)
   const [formLoading, setFormLoading] = useState(false)
   const [form] = Form.useForm<LeadCreateValues>()
+  const [lastUpdated, setLastUpdated] = useState<dayjs.Dayjs | null>(null)
+  const [countdown, setCountdown] = useState(POLL_INTERVAL)
+  const countdownRef = useRef(POLL_INTERVAL)
 
-  const load = async () => {
-    setLoading(true)
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
     setError(null)
     try {
       const res = await client.get('/leads', {
         params: { limit: 200, moderation_status: 'pending' },
       })
       setLeads(res.data)
+      setLastUpdated(dayjs())
+      countdownRef.current = POLL_INTERVAL
+      setCountdown(POLL_INTERVAL)
     } catch {
-      setError('Не удалось загрузить лиды на модерацию')
+      if (!silent) setError('Не удалось загрузить лиды на модерацию')
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     load()
-  }, [])
+    const pollInterval = setInterval(() => load(true), POLL_INTERVAL * 1000)
+
+    const tickInterval = setInterval(() => {
+      countdownRef.current = Math.max(0, countdownRef.current - 1)
+      setCountdown(countdownRef.current)
+    }, 1000)
+
+    return () => {
+      clearInterval(pollInterval)
+      clearInterval(tickInterval)
+    }
+  }, [load])
 
   const handleApprove = async (id: number) => {
     setProcessingIds((prev) => new Set(prev).add(id))
@@ -228,9 +247,14 @@ export default function Moderation() {
               Лиды на проверке
             </Text>
           </Badge>
-          <Button size="small" onClick={load}>
+          <Button size="small" icon={<SyncOutlined />} onClick={() => load(false)}>
             Обновить
           </Button>
+          {lastUpdated && (
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              Обновлено в {lastUpdated.format('HH:mm:ss')} · следующее через {countdown} с
+            </Text>
+          )}
         </div>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
           Добавить лид
