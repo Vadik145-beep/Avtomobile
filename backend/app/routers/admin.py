@@ -17,6 +17,7 @@ from app.models.transaction import Transaction, TransactionType
 from app.models.user import User
 from app.schemas.admin import (
     BonusIn,
+    DeductIn,
     DeliveryInfo,
     LeadAdminOut,
     LeadCreateIn,
@@ -174,6 +175,41 @@ async def add_bonus(
         Transaction(
             user_id=user.id,
             type=TransactionType.bonus,
+            amount=body.amount,
+            comment=body.comment,
+            source="admin",
+        )
+    )
+    await db.commit()
+    await db.refresh(user)
+    return UserOut.model_validate(user)
+
+
+@router.post(
+    "/users/{tg_id}/deduct",
+    response_model=UserOut,
+    dependencies=[Depends(get_current_admin)],
+    summary="Снять лимиты у пользователя",
+)
+async def deduct_balance(
+    tg_id: int,
+    body: DeductIn,
+    db: AsyncSession = Depends(get_db),
+) -> UserOut:
+    result = await db.execute(select(User).where(User.telegram_id == tg_id))
+    user = result.scalar_one_or_none()
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.limit_count < body.amount:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Недостаточно лимитов: доступно {user.limit_count}, запрошено {body.amount}",
+        )
+    user.limit_count -= body.amount
+    db.add(
+        Transaction(
+            user_id=user.id,
+            type=TransactionType.debit,
             amount=body.amount,
             comment=body.comment,
             source="admin",

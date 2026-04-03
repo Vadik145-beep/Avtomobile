@@ -21,6 +21,11 @@ class BonusIn(BaseModel):
     comment: str = Field(min_length=1)
 
 
+class DeductIn(BaseModel):
+    amount: int = Field(gt=0)
+    comment: str = Field(min_length=1)
+
+
 class SettingsIn(BaseModel):
     lead_delivery_mode: LeadDeliveryMode = LeadDeliveryMode.pull_broadcast
 
