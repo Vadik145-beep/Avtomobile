@@ -64,17 +64,26 @@ async def get_stats(db: AsyncSession = Depends(get_db)) -> StatsOut:
     users_total = (await db.execute(select(func.count()).select_from(User))).scalar_one()
     leads_today = (
         await db.execute(
-            select(func.count()).select_from(Lead).where(Lead.created_at >= today_start)
+            select(func.count()).select_from(Lead).where(
+                Lead.created_at >= today_start,
+                Lead.moderation_status == ModerationStatus.approved,
+            )
         )
     ).scalar_one()
     leads_week = (
         await db.execute(
-            select(func.count()).select_from(Lead).where(Lead.created_at >= week_start)
+            select(func.count()).select_from(Lead).where(
+                Lead.created_at >= week_start,
+                Lead.moderation_status == ModerationStatus.approved,
+            )
         )
     ).scalar_one()
     leads_month = (
         await db.execute(
-            select(func.count()).select_from(Lead).where(Lead.created_at >= month_start)
+            select(func.count()).select_from(Lead).where(
+                Lead.created_at >= month_start,
+                Lead.moderation_status == ModerationStatus.approved,
+            )
         )
     ).scalar_one()
 
