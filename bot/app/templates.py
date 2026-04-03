@@ -4,6 +4,7 @@ def lead_card_text(
     country_origin: str = "",
     city: str = "",
     timing: str = "",
+    recording_url: str = "",
 ) -> str:
     """Форматирует карточку лида для отправки в Telegram."""
     lines = []
@@ -17,6 +18,8 @@ def lead_card_text(
         lines.append(f"📍 {city}")
     if timing:
         lines.append(f"⏱ {timing}")
+    if recording_url:
+        lines.append(f'\n🎧 <a href="{recording_url}">Прослушать запись</a>')
     return "\n".join(lines)
 
 

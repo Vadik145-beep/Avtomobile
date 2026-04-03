@@ -10,6 +10,7 @@ class OpenContactIn(BaseModel):
 class OpenContactOut(BaseModel):
     phone: str
     lead_id: int
+    recording_url: str = ""
 
 
 class ErrorOut(BaseModel):

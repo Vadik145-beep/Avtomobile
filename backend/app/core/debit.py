@@ -11,10 +11,10 @@ from app.models.transaction import Transaction, TransactionType
 from app.models.user import User
 
 
-async def open_contact(tg_id: int, lead_id: int, db: AsyncSession) -> str:
+async def open_contact(tg_id: int, lead_id: int, db: AsyncSession) -> tuple[str, str]:
     """
     Atomically debit one limit from user and mark delivery as opened.
-    Returns decrypted phone number. Idempotent: repeated calls return phone without debit.
+    Returns (phone, recording_url). Idempotent: repeated calls return data without debit.
     Raises HTTPException on limit_zero, delivery_not_found, already_taken (race).
     """
     async with db.begin():
@@ -43,7 +43,8 @@ async def open_contact(tg_id: int, lead_id: int, db: AsyncSession) -> str:
 
         if delivery.status == DeliveryStatus.opened:
             # Idempotent — already opened before, no double debit
-            return _decrypt_phone(delivery.lead.phone_encrypted)
+            lead = delivery.lead
+            return _decrypt_phone(lead.phone_encrypted), lead.recording_url or ""
 
         if delivery.status == DeliveryStatus.blocked:
             raise HTTPException(
@@ -73,7 +74,7 @@ async def open_contact(tg_id: int, lead_id: int, db: AsyncSession) -> str:
 
         lead = delivery.lead
 
-    return _decrypt_phone(lead.phone_encrypted)
+    return _decrypt_phone(lead.phone_encrypted), lead.recording_url or ""
 
 
 def _decrypt_phone(phone_encrypted: str | None) -> str:

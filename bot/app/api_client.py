@@ -17,6 +17,7 @@ class UserInfo:
 class OpenContactResult:
     phone: str
     lead_id: int
+    recording_url: str = ""
 
 
 @dataclass
@@ -96,7 +97,11 @@ class BackendClient:
             resp.raise_for_status()
         resp.raise_for_status()
         data = resp.json()
-        return OpenContactResult(phone=data["phone"], lead_id=data["lead_id"])
+        return OpenContactResult(
+            phone=data["phone"],
+            lead_id=data["lead_id"],
+            recording_url=data.get("recording_url", ""),
+        )
 
     async def aclose(self) -> None:
         await self._client.aclose()

@@ -167,6 +167,7 @@ async def _create_delivery_and_notify(
             "timing": lead.timing or "",
             "city": lead.city or "",
             "phone": lead.phone_encrypted or "",
+            "recording_url": lead.recording_url or "",
         },
     )
     logger.debug("Lead %s dispatched to user tg_id=%s via %s", lead.id, user.telegram_id, source)

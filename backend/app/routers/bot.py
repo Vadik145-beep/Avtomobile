@@ -149,8 +149,8 @@ async def bot_open_contact(
     body: OpenContactIn,
     db: AsyncSession = Depends(get_db),
 ) -> OpenContactOut:
-    phone = await open_contact(body.telegram_id, body.lead_id, db)
-    return OpenContactOut(phone=phone, lead_id=body.lead_id)
+    phone, recording_url = await open_contact(body.telegram_id, body.lead_id, db)
+    return OpenContactOut(phone=phone, lead_id=body.lead_id, recording_url=recording_url)
 
 
 @router.post(

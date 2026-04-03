@@ -25,6 +25,7 @@ async def _send_lead_card(bot: Bot, data: dict) -> None:
         timing = data.get(b"timing", b"").decode()
         city = data.get(b"city", b"").decode()
         phone = data.get(b"phone", b"").decode()
+        recording_url = data.get(b"recording_url", b"").decode()
     except (KeyError, ValueError):
         logger.warning("Некорректные поля сообщения из стрима: %s", data)
         return
@@ -35,6 +36,7 @@ async def _send_lead_card(bot: Bot, data: dict) -> None:
         country_origin=country_origin,
         city=city,
         timing=timing,
+        recording_url=recording_url,
     )
 
     try:

@@ -33,9 +33,8 @@ async def callback_open_contact(callback: CallbackQuery) -> None:
 
     try:
         result = await client.open_contact(tg_id, lead_id, delivery_id)
-        recording_url = None
         await callback.message.answer(
-            contact_opened_text(result.phone, recording_url),
+            contact_opened_text(result.phone, result.recording_url or None),
             parse_mode="HTML",
         )
     except httpx.HTTPStatusError as exc:
