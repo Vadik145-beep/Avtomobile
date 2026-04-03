@@ -37,12 +37,20 @@ async def receive_lidozvon(
         )
         return {"status": "not_qualified"}
 
-    existing = await db.execute(
+    existing_result = await db.execute(
         select(Lead).where(Lead.call_id == payload.call_id)
     )
-    if existing.scalar_one_or_none() is not None:
-        logger.info("Duplicate lead call_id=%s — skipped", payload.call_id)
-        return {"status": "duplicate"}
+    existing = existing_result.scalar_one_or_none()
+
+    # Для тестовых лидов удаляем старую запись, чтобы каждый тест проходил заново
+    if existing is not None:
+        if payload.test:
+            await db.delete(existing)
+            await db.flush()
+            logger.info("Test lead call_id=%s — old record deleted, re-saving", payload.call_id)
+        else:
+            logger.info("Duplicate lead call_id=%s — skipped", payload.call_id)
+            return {"status": "duplicate"}
 
     structured = payload.structured_data or {}
     lead = Lead(
@@ -64,7 +72,7 @@ async def receive_lidozvon(
 
     if payload.test:
         await db.commit()
-        logger.info("Lidozvon test webhook call_id=%s — saved without distribution", payload.call_id)
+        logger.info("Lidozvon test webhook call_id=%s — saved, pending moderation", payload.call_id)
         return {"status": "test_saved", "id": lead.id}
 
     await db.commit()
