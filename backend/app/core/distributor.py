@@ -93,7 +93,6 @@ async def _dispatch_exclusive(lead: Lead, db: AsyncSession, redis: Redis) -> int
             select(User).where(
                 User.telegram_id == int(tg_id_str),
                 User.is_active == True,          # noqa: E712
-                User.icebreaker_active == True,  # noqa: E712
                 User.limit_count >= 1,
             )
         )
@@ -106,6 +105,8 @@ async def _dispatch_exclusive(lead: Lead, db: AsyncSession, redis: Redis) -> int
         await redis.lpush(REDIS_QUEUE_KEY, tg_id_str)
 
         user.limit_count -= 1
+        if user.limit_count <= 0:
+            await redis.lrem(REDIS_QUEUE_KEY, 0, tg_id_str)
         await _create_delivery_and_notify(user, lead, db, redis, source="icebreaker_exclusive")
         logger.info("pull_exclusive: lead %s dispatched to tg_id=%s", lead.id, tg_id_str)
         return 1
@@ -129,23 +130,37 @@ async def deliver_queued_leads_to_user(
     mode: LeadDeliveryMode = LeadDeliveryMode.pull_broadcast,
 ) -> int:
     """
-    Deliver pending (not yet delivered) leads from the DB pool to a single user.
+    Deliver pending (not yet delivered) leads from the DB pool.
     Called when the user activates the icebreaker.
 
-    In pull_exclusive mode the user must be the current head of the Redis queue;
-    otherwise 0 is returned — leads will arrive when it's their turn via distribute_lead.
+    In pull_exclusive mode: distribute every undelivered lead through the
+    round-robin queue (one lead per manager in order) instead of bulk-delivering
+    all leads to the single user who pressed the button.
+
+    In pull_broadcast mode: deliver all undelivered leads directly to this user.
     """
+    if mode == LeadDeliveryMode.pull_exclusive:
+        # Find all approved leads not yet delivered to anyone
+        delivered_ids_subq = select(LeadDelivery.lead_id).scalar_subquery()
+        pending_result = await db.execute(
+            select(Lead)
+            .where(
+                Lead.is_test == False,  # noqa: E712
+                Lead.moderation_status == ModerationStatus.approved,
+                Lead.id.not_in(delivered_ids_subq),
+            )
+            .order_by(Lead.created_at.asc())
+        )
+        pending_leads = pending_result.scalars().all()
+
+        count = 0
+        for lead in pending_leads:
+            count += await _dispatch_exclusive(lead, db, redis)
+        return count
+
+    # pull_broadcast: deliver all undelivered leads directly to this user
     if user.limit_count <= 0:
         return 0
-
-    if mode == LeadDeliveryMode.pull_exclusive:
-        head_tg_id = await redis.lindex(REDIS_QUEUE_KEY, -1)
-        if head_tg_id is None or int(head_tg_id) != user.telegram_id:
-            logger.info(
-                "deliver_queued: tg_id=%s is not head of exclusive queue, skipping",
-                user.telegram_id,
-            )
-            return 0
 
     already_subq = (
         select(LeadDelivery.lead_id)
@@ -171,6 +186,8 @@ async def deliver_queued_leads_to_user(
         if user.limit_count <= 0:
             break
         user.limit_count -= 1
+        if user.limit_count <= 0:
+            user.icebreaker_active = False
         await _create_delivery_and_notify(user, lead, db, redis, source="icebreaker_queue")
         dispatched += 1
 
