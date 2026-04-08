@@ -4,7 +4,7 @@ from aiogram import F, Router
 from aiogram.types import CallbackQuery, Message
 
 from app.api_client import client
-from app.keyboards import BTN_ICEBREAKER, CB_ICEBREAKER
+from app.keyboards import BTN_ICEBREAKER, CB_ICEBREAKER, main_menu_keyboard
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -26,6 +26,7 @@ async def _run_icebreaker(tg_id: int, reply_fn) -> None:
             "Пополните баланс, чтобы начать получать лиды.\n"
             "После пополнения нажмите <b>«🚀 Запустить ледокол»</b> снова.",
             parse_mode="HTML",
+            reply_markup=main_menu_keyboard(),
         )
     elif result.dispatched == 0:
         await reply_fn(
@@ -34,6 +35,7 @@ async def _run_icebreaker(tg_id: int, reply_fn) -> None:
             "вы получите их автоматически.\n\n"
             "Оставайтесь на связи!",
             parse_mode="HTML",
+            reply_markup=main_menu_keyboard(),
         )
     else:
         n = result.dispatched
@@ -48,6 +50,7 @@ async def _run_icebreaker(tg_id: int, reply_fn) -> None:
             f"Карточки придут в ближайшие секунды — ожидайте!\n\n"
             f"Новые лиды также будут приходить автоматически.",
             parse_mode="HTML",
+            reply_markup=main_menu_keyboard(),
         )
 
 

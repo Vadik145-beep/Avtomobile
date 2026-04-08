@@ -6,7 +6,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.core.distributor import dispatch_lead_to_icebreaker_users
+from app.core.distributor import dispatch_lead_to_icebreaker_users, reset_exclusive_queue
 from app.core.security import create_access_token, get_current_admin, verify_password
 from app.database import get_db
 from app.dependencies import get_redis
@@ -130,6 +130,19 @@ async def update_settings(
     await db.commit()
     await db.refresh(s)
     return SettingsOut.model_validate(s)
+
+
+@router.post(
+    "/queue/reset",
+    dependencies=[Depends(get_current_admin)],
+    summary="Пересбросить очередь exclusive-режима",
+)
+async def reset_queue(
+    db: AsyncSession = Depends(get_db),
+    redis=Depends(get_redis),
+) -> dict:
+    count = await reset_exclusive_queue(db, redis)
+    return {"queued": count}
 
 
 @router.get(
@@ -304,6 +317,8 @@ async def list_leads(
                 timing=lead.timing,
                 city=lead.city,
                 phone=lead.phone_encrypted,
+                agreements=lead.agreements,
+                about_client=lead.about_client,
                 created_at=lead.created_at,
                 is_test=lead.is_test,
                 moderation_status=lead.moderation_status,
@@ -362,6 +377,8 @@ async def approve_lead(
         timing=lead.timing,
         city=lead.city,
         phone=lead.phone_encrypted,
+        agreements=lead.agreements,
+        about_client=lead.about_client,
         created_at=lead.created_at,
         is_test=lead.is_test,
         moderation_status=lead.moderation_status,
@@ -402,6 +419,8 @@ async def reject_lead(
         timing=lead.timing,
         city=lead.city,
         phone=lead.phone_encrypted,
+        agreements=lead.agreements,
+        about_client=lead.about_client,
         created_at=lead.created_at,
         is_test=lead.is_test,
         moderation_status=lead.moderation_status,
@@ -428,6 +447,8 @@ async def create_lead(
         timing=body.timing,
         city=body.city,
         summary=body.summary,
+        agreements=body.agreements,
+        about_client=body.about_client,
         transcript=None,
         phone_encrypted=body.phone,
         recording_url="",
@@ -449,6 +470,8 @@ async def create_lead(
         timing=lead.timing,
         city=lead.city,
         phone=lead.phone_encrypted,
+        agreements=lead.agreements,
+        about_client=lead.about_client,
         created_at=lead.created_at,
         is_test=lead.is_test,
         moderation_status=lead.moderation_status,

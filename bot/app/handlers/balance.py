@@ -5,7 +5,7 @@ from aiogram.filters import Command
 from aiogram.types import CallbackQuery, Message
 
 from app.api_client import client
-from app.keyboards import BTN_BALANCE, CB_BALANCE, miniapp_keyboard
+from app.keyboards import BTN_BALANCE, CB_BALANCE, main_menu_keyboard, miniapp_keyboard
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -25,7 +25,7 @@ async def _send_balance(tg_id: int, reply_fn) -> None:
             f"💳 <b>Ваш баланс:</b> {n} лимитов.\n\n"
             f"На этот баланс вам придёт {leads_text}.\n\n"
             "Нажмите кнопку ниже, чтобы пополнить баланс:",
-            reply_markup=miniapp_keyboard(),
+            reply_markup=main_menu_keyboard(),
             parse_mode="HTML",
         )
     except Exception:

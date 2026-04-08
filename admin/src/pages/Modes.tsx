@@ -10,7 +10,7 @@ import {
   Row,
   Col,
 } from 'antd'
-import { TeamOutlined, UserOutlined, CheckCircleFilled } from '@ant-design/icons'
+import { TeamOutlined, UserOutlined, CheckCircleFilled, ReloadOutlined } from '@ant-design/icons'
 import client from '../api/client'
 
 const { Title, Text, Paragraph } = Typography
@@ -51,6 +51,7 @@ const MODES: {
 export default function Modes() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [resettingQueue, setResettingQueue] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [current, setCurrent] = useState<LeadDeliveryMode>('pull_broadcast')
 
@@ -70,6 +71,18 @@ export default function Modes() {
   useEffect(() => {
     load()
   }, [])
+
+  const handleResetQueue = async () => {
+    setResettingQueue(true)
+    try {
+      await client.post('/queue/reset')
+      message.success('Очередь пересброшена')
+    } catch {
+      message.error('Не удалось пересбросить очередь')
+    } finally {
+      setResettingQueue(false)
+    }
+  }
 
   const handleSelect = async (mode: LeadDeliveryMode) => {
     if (mode === current || saving) return
@@ -143,6 +156,16 @@ export default function Modes() {
                   >
                     {isActive ? 'Активен' : 'Выбрать'}
                   </Button>
+                  {isActive && mode.key === 'pull_exclusive' && (
+                    <Button
+                      icon={<ReloadOutlined />}
+                      loading={resettingQueue}
+                      onClick={(e) => { e.stopPropagation(); handleResetQueue() }}
+                      style={{ width: '100%' }}
+                    >
+                      Пересбросить очередь
+                    </Button>
+                  )}
                 </Space>
               </Card>
             </Col>

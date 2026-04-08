@@ -62,6 +62,8 @@ class LeadAdminOut(BaseModel):
     timing: str | None
     city: str | None
     phone: str | None
+    agreements: str | None = None
+    about_client: str | None = None
     created_at: datetime
     is_test: bool
     moderation_status: ModerationStatus
@@ -77,5 +79,7 @@ class LeadCreateIn(BaseModel):
     timing: str | None = None
     city: str | None = None
     summary: str | None = None
+    agreements: str | None = None
+    about_client: str | None = None
     is_test: bool = False
     pending_moderation: bool = False

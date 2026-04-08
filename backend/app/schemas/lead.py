@@ -31,6 +31,8 @@ class LeadOut(BaseModel):
     city: str | None
     summary: str | None
     recording_url: str | None
+    agreements: str | None
+    about_client: str | None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -45,6 +47,8 @@ class LeadCardOut(BaseModel):
     city: str | None
     summary: str | None
     recording_url: str | None
+    agreements: str | None
+    about_client: str | None
     created_at: datetime
 
     model_config = {"from_attributes": True}

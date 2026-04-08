@@ -6,6 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from redis.asyncio import Redis
 
 from app.config import settings
+from app.core.distributor import init_exclusive_queue
+from app.database import AsyncSessionLocal
 from app.dependencies import set_redis
 from app.routers import admin, webhook
 from app.routers.bot import miniapp_router, router as bot_router
@@ -19,6 +21,12 @@ async def lifespan(app: FastAPI):
     redis = Redis.from_url(settings.redis_url, decode_responses=True)
     set_redis(redis)
     logger.info("Redis connected: %s", settings.redis_url)
+
+    async with AsyncSessionLocal() as db:
+        added = await init_exclusive_queue(db, redis)
+        if added:
+            logger.info("Exclusive queue populated with %d users on startup", added)
+
     yield
     await redis.aclose()
     logger.info("Redis connection closed")

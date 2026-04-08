@@ -33,6 +33,8 @@ interface LeadPending {
   timing: string | null
   city: string | null
   phone: string | null
+  agreements: string | null
+  about_client: string | null
   created_at: string
   is_test: boolean
   moderation_status: string
@@ -179,6 +181,16 @@ export default function Moderation() {
           <Text type="secondary" style={{ fontSize: 12 }}>
             {r.timing || '—'}
           </Text>
+        </Space>
+      ),
+    },
+    {
+      title: 'Договорённости / О клиенте',
+      width: 220,
+      render: (_: unknown, r: LeadPending) => (
+        <Space direction="vertical" size={0}>
+          <Text style={{ fontSize: 12 }}>{r.agreements || '—'}</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>{r.about_client || '—'}</Text>
         </Space>
       ),
     },

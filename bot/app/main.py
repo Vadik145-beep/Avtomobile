@@ -9,6 +9,7 @@ from app.api_client import client
 from app.config import settings
 from app.handlers.balance import router as balance_router
 from app.handlers.contact import router as contact_router
+from app.handlers.fallback import router as fallback_router
 from app.handlers.icebreaker import router as icebreaker_router
 from app.handlers.start import router as start_router
 from app.worker import stream_worker
@@ -31,6 +32,7 @@ async def main() -> None:
     dp.include_router(balance_router)
     dp.include_router(icebreaker_router)
     dp.include_router(contact_router)
+    dp.include_router(fallback_router)
 
     worker_task = asyncio.create_task(stream_worker(bot))
 

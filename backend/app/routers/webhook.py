@@ -16,6 +16,19 @@ from app.schemas.lead import LidozvonWebhookIn, LeadOut
 
 logger = logging.getLogger(__name__)
 
+
+def _extract_country(structured: dict, agreements: str | None) -> str | None:
+    explicit = structured.get("country") or structured.get("Страна")
+    if explicit:
+        return explicit
+    text = (agreements or "").lower()
+    if "корея" in text or "korean" in text:
+        return "Корея"
+    if "китай" in text or "china" in text or "китайск" in text:
+        return "Китай"
+    return None
+
+
 router = APIRouter(prefix="/webhook", tags=["webhook"])
 
 
@@ -53,10 +66,15 @@ async def receive_lidozvon(
             return {"status": "duplicate"}
 
     structured = payload.structured_data or {}
+    logger.debug("Lidozvon structured_data call_id=%s: %s", payload.call_id, structured)
+
+    agreements = structured.get("agreements") or structured.get("Договорённости") or None
+    about_client = structured.get("about_client") or structured.get("О клиенте") or None
+
     lead = Lead(
         call_id=payload.call_id,
         client_name=structured.get("name") or None,
-        country_origin=structured.get("country") or None,
+        country_origin=_extract_country(structured, agreements),
         timing=structured.get("timing") or None,
         city=structured.get("city") or None,
         summary=payload.transcript,
@@ -66,6 +84,8 @@ async def receive_lidozvon(
         is_qualified=payload.is_qualified,
         is_test=bool(payload.test),
         moderation_status=ModerationStatus.pending,
+        agreements=agreements,
+        about_client=about_client,
     )
     db.add(lead)
     await db.flush()

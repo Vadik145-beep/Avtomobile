@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.distribution_setting import DistributionSetting, LeadDeliveryMode
-from app.models.lead import Lead
+from app.models.lead import Lead, ModerationStatus
 from app.models.lead_delivery import DeliveryStatus, LeadDelivery
 from app.models.transaction import Transaction, TransactionType
 from app.models.user import User
@@ -72,24 +72,44 @@ async def _dispatch_broadcast(lead: Lead, db: AsyncSession, redis: Redis) -> int
 
 async def _dispatch_exclusive(lead: Lead, db: AsyncSession, redis: Redis) -> int:
     """
-    Send lead to the FIRST icebreaker-active user with balance > 0 (FIFO by activation time).
+    Send lead to the FIRST icebreaker-active user with balance > 0.
+    User order is determined by the Redis FIFO queue (queue:users).
+    After delivery the user is rotated to the back of the queue.
     """
-    user_result = await db.execute(
-        select(User).where(
-            User.is_active == True,          # noqa: E712
-            User.icebreaker_active == True,  # noqa: E712
-            User.limit_count >= 1,
-        ).order_by(User.created_at.asc()).limit(1)
-    )
-    user = user_result.scalar_one_or_none()
-
-    if user is None:
-        logger.info("pull_exclusive: no eligible icebreaker-active user for lead %s", lead.id)
+    # Walk the Redis queue from the tail (head of FIFO) to find an eligible user
+    queue_len = await redis.llen(REDIS_QUEUE_KEY)
+    if queue_len == 0:
+        logger.info("pull_exclusive: Redis queue is empty for lead %s", lead.id)
         return 0
 
-    user.limit_count -= 1
-    await _create_delivery_and_notify(user, lead, db, redis, source="icebreaker_exclusive")
-    return 1
+    for position in range(queue_len - 1, -1, -1):
+        tg_id_str = await redis.lindex(REDIS_QUEUE_KEY, position)
+        if tg_id_str is None:
+            continue
+
+        user_result = await db.execute(
+            select(User).where(
+                User.telegram_id == int(tg_id_str),
+                User.is_active == True,          # noqa: E712
+                User.icebreaker_active == True,  # noqa: E712
+                User.limit_count >= 1,
+            )
+        )
+        user = user_result.scalar_one_or_none()
+        if user is None:
+            continue
+
+        # Rotate: remove from tail and push to head (stays in FIFO rotation)
+        await redis.rpop(REDIS_QUEUE_KEY)
+        await redis.lpush(REDIS_QUEUE_KEY, tg_id_str)
+
+        user.limit_count -= 1
+        await _create_delivery_and_notify(user, lead, db, redis, source="icebreaker_exclusive")
+        logger.info("pull_exclusive: lead %s dispatched to tg_id=%s", lead.id, tg_id_str)
+        return 1
+
+    logger.info("pull_exclusive: no eligible icebreaker-active user in queue for lead %s", lead.id)
+    return 0
 
 
 async def dispatch_lead_to_icebreaker_users(lead: Lead, db: AsyncSession, redis: Redis) -> int:
@@ -100,14 +120,30 @@ async def dispatch_lead_to_icebreaker_users(lead: Lead, db: AsyncSession, redis:
     return await distribute_lead(lead, db, redis)
 
 
-async def deliver_queued_leads_to_user(user: User, db: AsyncSession, redis: Redis) -> int:
+async def deliver_queued_leads_to_user(
+    user: User,
+    db: AsyncSession,
+    redis: Redis,
+    mode: LeadDeliveryMode = LeadDeliveryMode.pull_broadcast,
+) -> int:
     """
-    Deliver all pending (not yet delivered) leads from the DB pool to a single user.
+    Deliver pending (not yet delivered) leads from the DB pool to a single user.
     Called when the user activates the icebreaker.
-    Returns the number of leads dispatched.
+
+    In pull_exclusive mode the user must be the current head of the Redis queue;
+    otherwise 0 is returned — leads will arrive when it's their turn via distribute_lead.
     """
     if user.limit_count <= 0:
         return 0
+
+    if mode == LeadDeliveryMode.pull_exclusive:
+        head_tg_id = await redis.lindex(REDIS_QUEUE_KEY, -1)
+        if head_tg_id is None or int(head_tg_id) != user.telegram_id:
+            logger.info(
+                "deliver_queued: tg_id=%s is not head of exclusive queue, skipping",
+                user.telegram_id,
+            )
+            return 0
 
     already_subq = (
         select(LeadDelivery.lead_id)
@@ -118,7 +154,11 @@ async def deliver_queued_leads_to_user(user: User, db: AsyncSession, redis: Redi
     limit = min(user.limit_count, 50)
     leads_result = await db.execute(
         select(Lead)
-        .where(Lead.is_test == False, Lead.id.not_in(already_subq))  # noqa: E712
+        .where(
+            Lead.is_test == False,  # noqa: E712
+            Lead.moderation_status == ModerationStatus.approved,
+            Lead.id.not_in(already_subq),
+        )
         .order_by(Lead.created_at.desc())
         .limit(limit)
     )
@@ -133,6 +173,47 @@ async def deliver_queued_leads_to_user(user: User, db: AsyncSession, redis: Redi
         dispatched += 1
 
     return dispatched
+
+
+async def init_exclusive_queue(db: AsyncSession, redis: Redis) -> int:
+    """
+    Populate the Redis exclusive queue if it is empty.
+    Users are added in created_at ASC order so the earliest registrant
+    is served first (RPOP gives the tail = oldest = first in line).
+    Returns the number of users added (0 if queue was already populated).
+    """
+    queue_len = await redis.llen(REDIS_QUEUE_KEY)
+    if queue_len > 0:
+        logger.info("Exclusive queue already has %d entries, skipping init", queue_len)
+        return 0
+
+    users_result = await db.execute(
+        select(User)
+        .where(User.is_active == True)  # noqa: E712
+        .order_by(User.created_at.asc())
+    )
+    users = users_result.scalars().all()
+
+    if not users:
+        logger.info("Exclusive queue init: no active users found")
+        return 0
+
+    # lpush each user — last lpush'd ends up at tail (index -1) = first to be served
+    for user in users:
+        await redis.lpush(REDIS_QUEUE_KEY, str(user.telegram_id))
+
+    logger.info("Exclusive queue initialized with %d users", len(users))
+    return len(users)
+
+
+async def reset_exclusive_queue(db: AsyncSession, redis: Redis) -> int:
+    """
+    Clear the Redis exclusive queue and rebuild it from the DB.
+    Returns the number of users now in the queue.
+    """
+    await redis.delete(REDIS_QUEUE_KEY)
+    logger.info("Exclusive queue cleared, rebuilding...")
+    return await init_exclusive_queue(db, redis)
 
 
 async def _create_delivery_and_notify(

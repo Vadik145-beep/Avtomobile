@@ -12,6 +12,7 @@ from app.config import settings
 from app.core.credit import credit_limits
 from app.core.debit import open_contact
 from app.core.distributor import deliver_queued_leads_to_user, enqueue_user
+from app.models.distribution_setting import DistributionSetting, LeadDeliveryMode
 from app.core.security import verify_bot_secret
 from app.database import get_db
 from app.dependencies import get_redis
@@ -177,8 +178,13 @@ async def bot_icebreaker(
     if not user.icebreaker_active:
         user.icebreaker_active = True
 
-    # Deliver all queued (not yet seen) leads from the pool
-    dispatched = await deliver_queued_leads_to_user(user, db, redis)
+    # Determine current distribution mode
+    settings_result = await db.execute(select(DistributionSetting).limit(1))
+    dist_settings = settings_result.scalar_one_or_none()
+    mode = dist_settings.lead_delivery_mode if dist_settings else LeadDeliveryMode.pull_broadcast
+
+    # Deliver queued (not yet seen) leads from the pool, respecting distribution mode
+    dispatched = await deliver_queued_leads_to_user(user, db, redis, mode=mode)
 
     await db.commit()
     logger.info("Icebreaker: tg_id=%s dispatched=%s", body.telegram_id, dispatched)
