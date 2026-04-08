@@ -202,6 +202,7 @@ async def bot_icebreaker(
 async def miniapp_get_user(
     x_telegram_init_data: str = Header(default="", alias="X-Telegram-Init-Data"),
     db: AsyncSession = Depends(get_db),
+    redis=Depends(get_redis),
 ) -> MiniAppUserOut:
     tg_user = _validate_init_data(x_telegram_init_data)
     tg_id = tg_user.get("id")
@@ -221,6 +222,7 @@ async def miniapp_get_user(
         db.add(user)
         await db.commit()
         await db.refresh(user)
+        await enqueue_user(tg_id, redis)
 
     return MiniAppUserOut(
         telegram_id=user.telegram_id,

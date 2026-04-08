@@ -64,6 +64,8 @@ async def _dispatch_broadcast(lead: Lead, db: AsyncSession, redis: Redis) -> int
             continue
 
         user.limit_count -= 1
+        if user.limit_count <= 0:
+            user.icebreaker_active = False
         await _create_delivery_and_notify(user, lead, db, redis, source="icebreaker_broadcast")
         count += 1
 
@@ -99,8 +101,8 @@ async def _dispatch_exclusive(lead: Lead, db: AsyncSession, redis: Redis) -> int
         if user is None:
             continue
 
-        # Rotate: remove from tail and push to head (stays in FIFO rotation)
-        await redis.rpop(REDIS_QUEUE_KEY)
+        # Rotate: remove this specific user from their current position and push to head
+        await redis.lrem(REDIS_QUEUE_KEY, 1, tg_id_str)
         await redis.lpush(REDIS_QUEUE_KEY, tg_id_str)
 
         user.limit_count -= 1
