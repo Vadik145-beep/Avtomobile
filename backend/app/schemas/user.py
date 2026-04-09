@@ -16,6 +16,7 @@ class UserOut(BaseModel):
     first_name: str | None
     limit_count: int
     is_active: bool
+    icebreaker_active: bool
     created_at: datetime
 
     model_config = {"from_attributes": True}

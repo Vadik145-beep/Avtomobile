@@ -11,6 +11,7 @@ class UserInfo:
     username: str | None
     first_name: str | None
     limit_count: int
+    icebreaker_active: bool = False
 
 
 @dataclass
@@ -55,6 +56,7 @@ class BackendClient:
             username=data.get("username"),
             first_name=data.get("first_name"),
             limit_count=data["limit_count"],
+            icebreaker_active=data.get("icebreaker_active", False),
         )
 
     async def get_user(self, tg_id: int) -> UserInfo | None:
@@ -68,6 +70,7 @@ class BackendClient:
             username=data.get("username"),
             first_name=data.get("first_name"),
             limit_count=data["limit_count"],
+            icebreaker_active=data.get("icebreaker_active", False),
         )
 
     async def icebreaker(self, telegram_id: int) -> IcebreakerResult:
@@ -81,6 +84,13 @@ class BackendClient:
             dispatched=data["dispatched"],
             balance_empty=data.get("balance_empty", False),
         )
+
+    async def stop_icebreaker(self, telegram_id: int) -> None:
+        resp = await self._client.post(
+            "/api/bot/icebreaker/stop",
+            json={"telegram_id": telegram_id},
+        )
+        resp.raise_for_status()
 
     async def open_contact(
         self, telegram_id: int, lead_id: int, delivery_id: int

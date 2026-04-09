@@ -19,6 +19,7 @@ from app.schemas.admin import (
     BonusIn,
     DeductIn,
     DeliveryInfo,
+    IcebreakerToggleIn,
     LeadAdminOut,
     LeadCreateIn,
     LoginIn,
@@ -237,6 +238,27 @@ async def deduct_balance(
             source="admin",
         )
     )
+    await db.commit()
+    await db.refresh(user)
+    return UserOut.model_validate(user)
+
+
+@router.post(
+    "/users/{tg_id}/icebreaker",
+    response_model=UserOut,
+    dependencies=[Depends(get_current_admin)],
+    summary="Включить / выключить ледокол для пользователя",
+)
+async def toggle_icebreaker(
+    tg_id: int,
+    body: IcebreakerToggleIn,
+    db: AsyncSession = Depends(get_db),
+) -> UserOut:
+    result = await db.execute(select(User).where(User.telegram_id == tg_id))
+    user = result.scalar_one_or_none()
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.icebreaker_active = body.active
     await db.commit()
     await db.refresh(user)
     return UserOut.model_validate(user)

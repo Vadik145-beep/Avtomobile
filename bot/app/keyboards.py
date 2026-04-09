@@ -10,17 +10,20 @@ from app.config import settings
 
 BTN_BALANCE = "💳 Баланс"
 BTN_ICEBREAKER = "🚀 Запустить ледокол"
+BTN_STOP_ICEBREAKER = "🛑 Остановить ледокол"
 
 CB_BALANCE = "menu:balance"
 CB_ICEBREAKER = "menu:icebreaker"
+CB_STOP_ICEBREAKER = "menu:stop_icebreaker"
 
 
-def main_menu_keyboard() -> ReplyKeyboardMarkup:
-    """Reply-клавиатура главного меню с кнопками Баланс и Ледокол."""
+def main_menu_keyboard(icebreaker_active: bool = False) -> ReplyKeyboardMarkup:
+    """Reply-клавиатура главного меню. Показывает кнопку старта или остановки ледокола."""
+    ice_btn = BTN_STOP_ICEBREAKER if icebreaker_active else BTN_ICEBREAKER
     return ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text=BTN_BALANCE)],
-            [KeyboardButton(text=BTN_ICEBREAKER)],
+            [KeyboardButton(text=ice_btn)],
         ],
         resize_keyboard=True,
         persistent=True,
@@ -28,12 +31,14 @@ def main_menu_keyboard() -> ReplyKeyboardMarkup:
     )
 
 
-def main_menu_inline_keyboard() -> InlineKeyboardMarkup:
+def main_menu_inline_keyboard(icebreaker_active: bool = False) -> InlineKeyboardMarkup:
     """Объединённая inline-клавиатура: Баланс, Ледокол и Mini App."""
+    ice_text = BTN_STOP_ICEBREAKER if icebreaker_active else BTN_ICEBREAKER
+    ice_cb = CB_STOP_ICEBREAKER if icebreaker_active else CB_ICEBREAKER
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text=BTN_BALANCE, callback_data=CB_BALANCE)],
-            [InlineKeyboardButton(text=BTN_ICEBREAKER, callback_data=CB_ICEBREAKER)],
+            [InlineKeyboardButton(text=ice_text, callback_data=ice_cb)],
             [
                 InlineKeyboardButton(
                     text="📱 Открыть приложение",

@@ -17,9 +17,11 @@ async def cmd_start(message: Message) -> None:
     username = message.from_user.username
     first_name = message.from_user.first_name
 
+    icebreaker_active = False
     try:
         user = await client.register_user(tg_id, username=username, first_name=first_name)
         limit_text = f"Ваш баланс: <b>{user.limit_count}</b> лимитов."
+        icebreaker_active = user.icebreaker_active
     except Exception:
         logger.exception("Ошибка регистрации пользователя tg_id=%s", tg_id)
         limit_text = "Произошла ошибка при регистрации. Попробуйте позже."
@@ -30,7 +32,7 @@ async def cmd_start(message: Message) -> None:
         "Добро пожаловать в <b>Авто-Лид</b> — сервис автомобильных лидов.\n\n"
         f"{limit_text}\n\n"
         "Используйте кнопки ниже для навигации.",
-        reply_markup=main_menu_keyboard(),
+        reply_markup=main_menu_keyboard(icebreaker_active=icebreaker_active),
         parse_mode="HTML",
     )
     await message.answer(

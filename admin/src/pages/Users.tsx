@@ -20,7 +20,14 @@ import {
   Tabs,
 } from 'antd'
 import type { TableColumnsType } from 'antd'
-import { SearchOutlined, GiftOutlined, ReloadOutlined, MinusCircleOutlined } from '@ant-design/icons'
+import {
+  SearchOutlined,
+  GiftOutlined,
+  ReloadOutlined,
+  MinusCircleOutlined,
+  PlayCircleOutlined,
+  StopOutlined,
+} from '@ant-design/icons'
 import dayjs from 'dayjs'
 import client from '../api/client'
 
@@ -30,6 +37,7 @@ interface User {
   telegram_id: number
   username: string | null
   limit_count: number
+  icebreaker_active: boolean
   created_at: string
 }
 
@@ -66,6 +74,7 @@ export default function Users() {
   const [bonusForm] = Form.useForm()
   const [deductLoading, setDeductLoading] = useState(false)
   const [deductForm] = Form.useForm()
+  const [icebreakerLoadingId, setIcebreakerLoadingId] = useState<number | null>(null)
 
   const loadUsers = useCallback(async (p = page, sid = searchId) => {
     setLoading(true)
@@ -156,6 +165,27 @@ export default function Users() {
     }
   }
 
+  const handleToggleIcebreaker = async (user: User, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setIcebreakerLoadingId(user.telegram_id)
+    const newActive = !user.icebreaker_active
+    try {
+      const res = await client.post(`/users/${user.telegram_id}/icebreaker`, { active: newActive })
+      const updated: User = res.data
+      setUsers((prev) =>
+        prev.map((u) => u.telegram_id === user.telegram_id ? { ...u, icebreaker_active: updated.icebreaker_active } : u)
+      )
+      if (selectedUser?.telegram_id === user.telegram_id) {
+        setSelectedUser((prev) => prev ? { ...prev, icebreaker_active: updated.icebreaker_active } : prev)
+      }
+      message.success(newActive ? 'Ледокол запущен' : 'Ледокол остановлен')
+    } catch {
+      message.error('Не удалось изменить статус ледокола')
+    } finally {
+      setIcebreakerLoadingId(null)
+    }
+  }
+
   const columns: TableColumnsType<User> = [
     {
       title: 'Telegram ID',
@@ -178,6 +208,19 @@ export default function Users() {
       sorter: (a, b) => a.limit_count - b.limit_count,
     },
     {
+      title: 'Ледокол',
+      dataIndex: 'icebreaker_active',
+      width: 120,
+      render: (v) => (
+        <Tag color={v ? 'green' : 'default'}>{v ? 'Активен' : 'Не активен'}</Tag>
+      ),
+      filters: [
+        { text: 'Активен', value: true },
+        { text: 'Не активен', value: false },
+      ],
+      onFilter: (value, record) => record.icebreaker_active === value,
+    },
+    {
       title: 'Зарегистрирован',
       dataIndex: 'created_at',
       width: 170,
@@ -185,11 +228,34 @@ export default function Users() {
     },
     {
       title: '',
-      width: 100,
+      width: 200,
       render: (_, record) => (
-        <Button size="small" onClick={() => openDrawer(record)}>
-          Подробнее
-        </Button>
+        <Space size={4} onClick={(e) => e.stopPropagation()}>
+          {record.icebreaker_active ? (
+            <Button
+              size="small"
+              danger
+              icon={<StopOutlined />}
+              loading={icebreakerLoadingId === record.telegram_id}
+              onClick={(e) => handleToggleIcebreaker(record, e)}
+            >
+              Остановить
+            </Button>
+          ) : (
+            <Button
+              size="small"
+              type="primary"
+              icon={<PlayCircleOutlined />}
+              loading={icebreakerLoadingId === record.telegram_id}
+              onClick={(e) => handleToggleIcebreaker(record, e)}
+            >
+              Запустить
+            </Button>
+          )}
+          <Button size="small" onClick={() => openDrawer(record)}>
+            Подробнее
+          </Button>
+        </Space>
       ),
     },
   ]
@@ -280,6 +346,9 @@ export default function Users() {
               <Text strong>Пользователь</Text>
               <Text code>{selectedUser.telegram_id}</Text>
               {selectedUser.username && <Text type="secondary">@{selectedUser.username}</Text>}
+              <Tag color={selectedUser.icebreaker_active ? 'green' : 'default'}>
+                {selectedUser.icebreaker_active ? '🚀 Ледокол активен' : '🛑 Ледокол выключен'}
+              </Tag>
             </Space>
           ) : null
         }

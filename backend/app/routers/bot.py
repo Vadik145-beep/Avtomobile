@@ -27,6 +27,7 @@ from app.schemas.bot import (
     MiniAppUserOut,
     OpenContactIn,
     OpenContactOut,
+    StopIcebreakerIn,
 )
 from app.schemas.user import UserCreate, UserOut
 
@@ -189,6 +190,26 @@ async def bot_icebreaker(
     await db.commit()
     logger.info("Icebreaker: tg_id=%s dispatched=%s", body.telegram_id, dispatched)
     return IcebreakerOut(dispatched=dispatched)
+
+
+@router.post(
+    "/icebreaker/stop",
+    summary="Остановить ледокол — деактивировать получение лидов",
+)
+async def bot_stop_icebreaker(
+    body: StopIcebreakerIn,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    user_result = await db.execute(
+        select(User).where(User.telegram_id == body.telegram_id)
+    )
+    user = user_result.scalar_one_or_none()
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="user_not_found")
+    user.icebreaker_active = False
+    await db.commit()
+    logger.info("Icebreaker stopped: tg_id=%s", body.telegram_id)
+    return {"ok": True}
 
 
 # ── Mini App endpoints ──────────────────────────────────────────────────────

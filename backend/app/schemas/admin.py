@@ -83,3 +83,7 @@ class LeadCreateIn(BaseModel):
     about_client: str | None = None
     is_test: bool = False
     pending_moderation: bool = False
+
+
+class IcebreakerToggleIn(BaseModel):
+    active: bool
