@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 
 import redis.asyncio as aioredis
 from aiogram import Bot
@@ -41,6 +42,12 @@ async def _send_lead_card(bot: Bot, data: dict) -> None:
         timing=timing,
         recording_url=recording_url,
     )
+
+    send_after_raw = data.get(b"send_after", b"")
+    if send_after_raw:
+        delay = float(send_after_raw) - time.time()
+        if delay > 0:
+            await asyncio.sleep(delay)
 
     try:
         await bot.send_message(

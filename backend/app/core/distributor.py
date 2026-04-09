@@ -1,4 +1,5 @@
 import logging
+import time
 from datetime import datetime, timezone
 
 from redis.asyncio import Redis
@@ -34,7 +35,7 @@ async def distribute_lead(lead: Lead, db: AsyncSession, redis: Redis) -> int:
         return await _dispatch_exclusive(lead, db, redis)
 
 
-async def _dispatch_broadcast(lead: Lead, db: AsyncSession, redis: Redis) -> int:
+async def _dispatch_broadcast(lead: Lead, db: AsyncSession, redis: Redis, notify_delay: float = 0.0) -> int:
     """
     Send lead to ALL users who have icebreaker_active=True and balance > 0.
     Each user spends 1 limit.
@@ -66,13 +67,13 @@ async def _dispatch_broadcast(lead: Lead, db: AsyncSession, redis: Redis) -> int
         user.limit_count -= 1
         if user.limit_count <= 0:
             user.icebreaker_active = False
-        await _create_delivery_and_notify(user, lead, db, redis, source="icebreaker_broadcast")
+        await _create_delivery_and_notify(user, lead, db, redis, source="icebreaker_broadcast", notify_delay=notify_delay)
         count += 1
 
     return count
 
 
-async def _dispatch_exclusive(lead: Lead, db: AsyncSession, redis: Redis) -> int:
+async def _dispatch_exclusive(lead: Lead, db: AsyncSession, redis: Redis, notify_delay: float = 0.0) -> int:
     """
     Send lead to the FIRST icebreaker-active user with balance > 0.
     User order is determined by the Redis FIFO queue (queue:users).
@@ -108,7 +109,7 @@ async def _dispatch_exclusive(lead: Lead, db: AsyncSession, redis: Redis) -> int
         user.limit_count -= 1
         if user.limit_count <= 0:
             await redis.lrem(REDIS_QUEUE_KEY, 0, tg_id_str)
-        await _create_delivery_and_notify(user, lead, db, redis, source="icebreaker_exclusive")
+        await _create_delivery_and_notify(user, lead, db, redis, source="icebreaker_exclusive", notify_delay=notify_delay)
         logger.info("pull_exclusive: lead %s dispatched to tg_id=%s", lead.id, tg_id_str)
         return 1
 
@@ -129,6 +130,7 @@ async def deliver_queued_leads_to_user(
     db: AsyncSession,
     redis: Redis,
     mode: LeadDeliveryMode = LeadDeliveryMode.pull_broadcast,
+    notify_delay: float = 0.0,
 ) -> int:
     """
     Deliver pending (not yet delivered) leads from the DB pool.
@@ -156,7 +158,7 @@ async def deliver_queued_leads_to_user(
 
         count = 0
         for lead in pending_leads:
-            count += await _dispatch_exclusive(lead, db, redis)
+            count += await _dispatch_exclusive(lead, db, redis, notify_delay=notify_delay)
         return count
 
     # pull_broadcast: deliver all undelivered leads directly to this user
@@ -189,7 +191,7 @@ async def deliver_queued_leads_to_user(
         user.limit_count -= 1
         if user.limit_count <= 0:
             user.icebreaker_active = False
-        await _create_delivery_and_notify(user, lead, db, redis, source="icebreaker_queue")
+        await _create_delivery_and_notify(user, lead, db, redis, source="icebreaker_queue", notify_delay=notify_delay)
         dispatched += 1
 
     return dispatched
@@ -237,7 +239,7 @@ async def reset_exclusive_queue(db: AsyncSession, redis: Redis) -> int:
 
 
 async def _create_delivery_and_notify(
-    user: User, lead: Lead, db: AsyncSession, redis: Redis, source: str
+    user: User, lead: Lead, db: AsyncSession, redis: Redis, source: str, notify_delay: float = 0.0
 ) -> None:
     delivery = LeadDelivery(
         lead_id=lead.id,
@@ -257,20 +259,21 @@ async def _create_delivery_and_notify(
     )
     await db.flush()
 
-    await redis.xadd(
-        LEAD_NOTIFY_STREAM,
-        {
-            "lead_id": str(lead.id),
-            "user_tg_id": str(user.telegram_id),
-            "delivery_id": str(delivery.id),
-            "client_name": lead.client_name or "",
-            "country_origin": lead.country_origin or "",
-            "timing": lead.timing or "",
-            "city": lead.city or "",
-            "phone": lead.phone_encrypted or "",
-            "recording_url": lead.recording_url or "",
-        },
-    )
+    payload: dict = {
+        "lead_id": str(lead.id),
+        "user_tg_id": str(user.telegram_id),
+        "delivery_id": str(delivery.id),
+        "client_name": lead.client_name or "",
+        "country_origin": lead.country_origin or "",
+        "timing": lead.timing or "",
+        "city": lead.city or "",
+        "phone": lead.phone_encrypted or "",
+        "recording_url": lead.recording_url or "",
+    }
+    if notify_delay > 0:
+        payload["send_after"] = str(time.time() + notify_delay)
+
+    await redis.xadd(LEAD_NOTIFY_STREAM, payload)
     logger.debug("Lead %s dispatched to user tg_id=%s via %s", lead.id, user.telegram_id, source)
 
 

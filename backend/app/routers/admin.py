@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.core.distributor import (
+    deliver_queued_leads_to_user,
     dispatch_lead_to_icebreaker_users,
     enqueue_user,
     remove_user_from_queue,
@@ -15,7 +16,7 @@ from app.core.distributor import (
 from app.core.security import create_access_token, get_current_admin, verify_password
 from app.database import get_db
 from app.dependencies import get_redis
-from app.models.distribution_setting import DistributionSetting
+from app.models.distribution_setting import DistributionSetting, LeadDeliveryMode
 from app.models.lead import Lead, ModerationStatus
 from app.models.lead_delivery import LeadDelivery
 from app.models.transaction import Transaction, TransactionType
@@ -273,6 +274,11 @@ async def toggle_icebreaker(
 
     if body.active:
         await enqueue_user(tg_id, redis)
+        settings_result = await db.execute(select(DistributionSetting).limit(1))
+        dist_settings = settings_result.scalar_one_or_none()
+        mode = dist_settings.lead_delivery_mode if dist_settings else LeadDeliveryMode.pull_broadcast
+        await deliver_queued_leads_to_user(user, db, redis, mode=mode, notify_delay=3.0)
+        await db.commit()
     else:
         await remove_user_from_queue(tg_id, redis)
 

@@ -185,7 +185,7 @@ async def bot_icebreaker(
     mode = dist_settings.lead_delivery_mode if dist_settings else LeadDeliveryMode.pull_broadcast
 
     # Deliver queued (not yet seen) leads from the pool, respecting distribution mode
-    dispatched = await deliver_queued_leads_to_user(user, db, redis, mode=mode)
+    dispatched = await deliver_queued_leads_to_user(user, db, redis, mode=mode, notify_delay=2.0)
 
     await db.commit()
     logger.info("Icebreaker: tg_id=%s dispatched=%s", body.telegram_id, dispatched)
