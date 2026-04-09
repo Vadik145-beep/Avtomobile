@@ -8,7 +8,7 @@ from aiogram.types import (
 
 from app.config import settings
 
-BTN_BALANCE = "💳 Баланс"
+BTN_BALANCE = "Баланс 💳"
 BTN_ICEBREAKER = "Запустить лидогенерацию 🚗"
 BTN_STOP_ICEBREAKER = "🛑 Остановить лидогенерацию"
 
