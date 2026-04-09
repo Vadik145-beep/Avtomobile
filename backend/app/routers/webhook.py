@@ -46,18 +46,20 @@ def _parse_transcript(transcript: str | None) -> dict:
 
         ai_lower = line.lower()
 
-        # Next user response (skip blank/AI lines, look at most 3 lines ahead)
+        # Next user response (look at most 3 lines ahead)
         next_user: str | None = None
+        next_user_idx: int = -1
         for j in range(i + 1, min(i + 4, len(lines))):
             if lines[j].startswith("User:"):
                 raw = lines[j][5:].strip().rstrip(".,!? ")
                 if raw:
                     next_user = raw
+                    next_user_idx = j
                 break
             if lines[j].startswith("AI:"):
                 break
 
-        if not next_user or len(next_user) > 120:
+        if not next_user or len(next_user) > 150:
             continue
 
         # Name — AI asks how to address the caller
@@ -65,9 +67,26 @@ def _parse_transcript(transcript: str | None) -> dict:
                 and "name" not in result:
             result["name"] = next_user
 
-        # City — overwrite so that the last answer wins (handles AI correction loops)
+        # City — overwrite each time so the last (corrected) answer wins.
+        # Prefer to extract the confirmed city from the AI's next line (e.g. "Отлично, Иркутск,...")
         elif "каком городе" in ai_lower or "каком российском городе" in ai_lower:
-            result["city"] = next_user
+            city_value = next_user
+            # Look for AI confirmation in the next few lines after user's reply
+            if next_user_idx >= 0:
+                for k in range(next_user_idx + 1, min(next_user_idx + 3, len(lines))):
+                    if lines[k].startswith("AI:"):
+                        ai_confirm = lines[k][3:].strip()
+                        # AI often starts with "Отлично, <City>," or "Понял, <City>."
+                        import re
+                        m = re.match(
+                            r"(?:отлично|понял|принято|хорошо)[,.]?\s+([А-ЯЁа-яё][а-яё]+)",
+                            ai_confirm,
+                            re.IGNORECASE,
+                        )
+                        if m:
+                            city_value = m.group(1)
+                        break
+            result["city"] = city_value
 
         # Country — AI asks Korea or China
         elif ("кореи или китая" in ai_lower or "корея или китай" in ai_lower
