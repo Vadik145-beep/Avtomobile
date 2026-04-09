@@ -55,7 +55,7 @@ export default function AppLayout() {
         >
           <Avatar icon={<CarOutlined />} style={{ background: '#1677ff', flexShrink: 0 }} />
           <Text strong style={{ color: '#fff', fontSize: 16 }}>
-            🚗 Лид Машина
+            Лид Машина 🚗
           </Text>
         </Flex>
         <Menu
@@ -89,7 +89,7 @@ export default function AppLayout() {
           }}
         >
           <Text style={{ fontSize: 18, fontWeight: 600 }}>
-            {menuItems.find((m) => m.key === location.pathname)?.label ?? '🚗 Лид Машина'}
+            {menuItems.find((m) => m.key === location.pathname)?.label ?? 'Лид Машина 🚗'}
           </Text>
         </Header>
         <Content style={{ padding: 24, background: '#f5f5f5', minHeight: 'calc(100vh - 64px)' }}>

@@ -34,7 +34,7 @@ export default function BalancePage() {
   return (
     <div className="page">
       <header className="app-header">
-        <span className="app-title">🚗 Лид Машина</span>
+        <span className="app-title">Лид Машина 🚗</span>
       </header>
 
       <main className="page-content">
