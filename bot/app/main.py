@@ -4,6 +4,7 @@ import logging
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
+from aiogram.types import MenuButtonWebApp, WebAppInfo
 
 from app.api_client import client
 from app.config import settings
@@ -33,6 +34,13 @@ async def main() -> None:
     dp.include_router(icebreaker_router)
     dp.include_router(contact_router)
     dp.include_router(fallback_router)
+
+    await bot.set_chat_menu_button(
+        menu_button=MenuButtonWebApp(
+            text="📱 Открыть приложение",
+            web_app=WebAppInfo(url=settings.miniapp_url),
+        )
+    )
 
     worker_task = asyncio.create_task(stream_worker(bot))
 
