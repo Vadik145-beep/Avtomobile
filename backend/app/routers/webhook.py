@@ -66,7 +66,7 @@ async def receive_lidozvon(
             return {"status": "duplicate"}
 
     structured = payload.structured_data or {}
-    logger.debug("Lidozvon structured_data call_id=%s: %s", payload.call_id, structured)
+    logger.info("Lidozvon RAW call_id=%s phone=%r structured=%r", payload.call_id, payload.phone, structured)
 
     agreements = structured.get("agreements") or structured.get("Договорённости") or None
     about_client = structured.get("about_client") or structured.get("О клиенте") or None
