@@ -230,9 +230,11 @@ export default function Users() {
     {
       title: '',
       width: 200,
-      render: (_, record) => (
+      render: (_, record) => {
+        const active = record.icebreaker_active && record.limit_count > 0
+        return (
         <Space size={4} onClick={(e) => e.stopPropagation()}>
-          {record.icebreaker_active ? (
+          {active ? (
             <Button
               size="small"
               danger
@@ -257,7 +259,8 @@ export default function Users() {
             Подробнее
           </Button>
         </Space>
-      ),
+        )
+      },
     },
   ]
 
