@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.core.credit import credit_limits
 from app.core.debit import open_contact
-from app.core.distributor import deliver_queued_leads_to_user, enqueue_user
+from app.core.distributor import deliver_queued_leads_to_user, enqueue_user, remove_user_from_queue
 from app.models.distribution_setting import DistributionSetting, LeadDeliveryMode
 from app.core.security import verify_bot_secret
 from app.database import get_db
@@ -178,6 +178,7 @@ async def bot_icebreaker(
     # Mark icebreaker as active so new incoming leads are delivered in real-time
     if not user.icebreaker_active:
         user.icebreaker_active = True
+        await enqueue_user(body.telegram_id, redis)
 
     # Determine current distribution mode
     settings_result = await db.execute(select(DistributionSetting).limit(1))
@@ -199,6 +200,7 @@ async def bot_icebreaker(
 async def bot_stop_icebreaker(
     body: StopIcebreakerIn,
     db: AsyncSession = Depends(get_db),
+    redis=Depends(get_redis),
 ) -> dict:
     user_result = await db.execute(
         select(User).where(User.telegram_id == body.telegram_id)
@@ -207,6 +209,7 @@ async def bot_stop_icebreaker(
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="user_not_found")
     user.icebreaker_active = False
+    await remove_user_from_queue(body.telegram_id, redis)
     await db.commit()
     logger.info("Icebreaker stopped: tg_id=%s", body.telegram_id)
     return {"ok": True}

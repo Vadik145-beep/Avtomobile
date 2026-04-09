@@ -85,20 +85,22 @@ async def _dispatch_broadcast(lead: Lead, db: AsyncSession, redis: Redis, notify
 
 async def _dispatch_exclusive(lead: Lead, db: AsyncSession, redis: Redis, notify_delay: float = 0.0) -> int:
     """
-    Send lead to the FIRST icebreaker-active user with balance > 0.
-    User order is determined by the Redis FIFO queue (queue:users).
-    After delivery the user is rotated to the back of the queue.
+    Send lead to the next icebreaker-active user with balance > 0 in round-robin order.
+    RPOP takes the next user from the tail (FIFO head), LPUSH puts them back at the head
+    so they cycle to the end of the queue after receiving a lead.
     """
-    # Walk the Redis queue from the tail (head of FIFO) to find an eligible user
     queue_len = await redis.llen(REDIS_QUEUE_KEY)
     if queue_len == 0:
         logger.info("pull_exclusive: Redis queue is empty for lead %s", lead.id)
         return 0
 
-    for position in range(queue_len - 1, -1, -1):
-        tg_id_str = await redis.lindex(REDIS_QUEUE_KEY, position)
-        if tg_id_str is None:
-            continue
+    # Try each slot in the queue exactly once to find an eligible user
+    for _ in range(queue_len):
+        tg_id_bytes = await redis.rpop(REDIS_QUEUE_KEY)
+        if tg_id_bytes is None:
+            break
+
+        tg_id_str = tg_id_bytes if isinstance(tg_id_bytes, str) else tg_id_bytes.decode()
 
         user_result = await db.execute(
             select(User).where(
@@ -110,10 +112,11 @@ async def _dispatch_exclusive(lead: Lead, db: AsyncSession, redis: Redis, notify
         )
         user = user_result.scalar_one_or_none()
         if user is None:
+            # User no longer eligible — skip and don't return to queue
+            logger.debug("pull_exclusive: tg_id=%s not eligible, removing from queue", tg_id_str)
             continue
 
-        # Rotate: remove this specific user from their current position and push to head
-        await redis.lrem(REDIS_QUEUE_KEY, 1, tg_id_str)
+        # Place back at the head (will receive next lead last — true round-robin)
         await redis.lpush(REDIS_QUEUE_KEY, tg_id_str)
 
         user.limit_count -= 1
@@ -121,6 +124,7 @@ async def _dispatch_exclusive(lead: Lead, db: AsyncSession, redis: Redis, notify
             await redis.lrem(REDIS_QUEUE_KEY, 0, tg_id_str)
             user.icebreaker_active = False
             await _notify_icebreaker_stopped_balance(user, redis)
+
         await _create_delivery_and_notify(user, lead, db, redis, source="icebreaker_exclusive", notify_delay=notify_delay)
         logger.info("pull_exclusive: lead %s dispatched to tg_id=%s", lead.id, tg_id_str)
         return 1
@@ -228,16 +232,20 @@ async def init_exclusive_queue(db: AsyncSession, redis: Redis) -> int:
 
     users_result = await db.execute(
         select(User)
-        .where(User.is_active == True)  # noqa: E712
+        .where(
+            User.is_active == True,           # noqa: E712
+            User.icebreaker_active == True,   # noqa: E712
+            User.limit_count >= 1,
+        )
         .order_by(User.created_at.asc())
     )
     users = users_result.scalars().all()
 
     if not users:
-        logger.info("Exclusive queue init: no active users found")
+        logger.info("Exclusive queue init: no active icebreaker users found")
         return 0
 
-    # lpush each user — last lpush'd ends up at tail (index -1) = first to be served
+    # lpush each user — last lpush'd ends up at tail (index -1) = first to be served via rpop
     for user in users:
         await redis.lpush(REDIS_QUEUE_KEY, str(user.telegram_id))
 
@@ -305,7 +313,8 @@ async def _get_current_settings(db: AsyncSession) -> DistributionSetting:
 
 
 async def enqueue_user(tg_id: int, redis: Redis) -> None:
-    """Add a user to the exclusive distribution queue (LPUSH so RPOP gives FIFO)."""
+    """Add a user to the exclusive distribution queue. Removes duplicates first to keep the queue clean."""
+    await redis.lrem(REDIS_QUEUE_KEY, 0, str(tg_id))
     await redis.lpush(REDIS_QUEUE_KEY, str(tg_id))
 
 
