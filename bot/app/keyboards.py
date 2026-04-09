@@ -41,7 +41,7 @@ def main_menu_inline_keyboard(icebreaker_active: bool = False) -> InlineKeyboard
             [InlineKeyboardButton(text=ice_text, callback_data=ice_cb)],
             [
                 InlineKeyboardButton(
-                    text="💰 Пополнить баланс",
+                    text="Пополнить баланс 💰",
                     web_app=WebAppInfo(url=settings.miniapp_url),
                 )
             ],
@@ -55,7 +55,7 @@ def miniapp_keyboard() -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="💰 Пополнить баланс",
+                    text="Пополнить баланс 💰",
                     web_app=WebAppInfo(url=settings.miniapp_url),
                 )
             ]
