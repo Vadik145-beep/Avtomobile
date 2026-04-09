@@ -5,13 +5,16 @@ import redis.asyncio as aioredis
 from aiogram import Bot
 
 from app.config import settings
-
+from app.keyboards import main_menu_keyboard
 from app.templates import lead_card_text
 
 logger = logging.getLogger(__name__)
 
 STREAM_KEY = "leads:notify"
 WORKER_LAST_ID_KEY = "bot:stream:last_id"
+
+KEYBOARD_UPDATE_STREAM = "bot:keyboard_update"
+KEYBOARD_UPDATE_LAST_ID_KEY = "bot:keyboard_update:last_id"
 
 
 async def _send_lead_card(bot: Bot, data: dict) -> None:
@@ -56,11 +59,72 @@ async def _send_lead_card(bot: Bot, data: dict) -> None:
         )
 
 
-async def stream_worker(bot: Bot) -> None:
+async def _keyboard_update_worker(bot: Bot) -> None:
+    """Читает Redis Stream bot:keyboard_update и обновляет клавиатуру пользователей."""
+    r = aioredis.from_url(settings.redis_url, decode_responses=False)
+
+    saved = await r.get(KEYBOARD_UPDATE_LAST_ID_KEY)
+    last_id = saved if saved else b"$"
+
+    logger.info("Keyboard update worker запущен, читаю %s с позиции %s", KEYBOARD_UPDATE_STREAM, last_id)
+
+    while True:
+        try:
+            messages = await r.xread({KEYBOARD_UPDATE_STREAM: last_id}, block=5000, count=10)
+
+            if not messages:
+                continue
+
+            for _stream, entries in messages:
+                for msg_id, data in entries:
+                    try:
+                        tg_id = int(data[b"telegram_id"])
+                        icebreaker_active = data.get(b"icebreaker_active", b"0") == b"1"
+                    except (KeyError, ValueError):
+                        logger.warning("Некорректные поля keyboard_update: %s", data)
+                        last_id = msg_id
+                        await r.set(KEYBOARD_UPDATE_LAST_ID_KEY, last_id)
+                        continue
+
+                    status_text = (
+                        "✅ Ледокол <b>запущен</b> администратором. Вы будете получать новые лиды."
+                        if icebreaker_active
+                        else "🛑 Ледокол <b>остановлен</b> администратором. Вы больше не будете получать лиды."
+                    )
+                    try:
+                        await bot.send_message(
+                            chat_id=tg_id,
+                            text=status_text,
+                            parse_mode="HTML",
+                            reply_markup=main_menu_keyboard(icebreaker_active=icebreaker_active),
+                        )
+                        logger.info(
+                            "Keyboard update отправлен: tg_id=%s icebreaker_active=%s",
+                            tg_id,
+                            icebreaker_active,
+                        )
+                    except Exception:
+                        logger.exception(
+                            "Ошибка отправки keyboard update tg_id=%s", tg_id
+                        )
+
+                    last_id = msg_id
+                    await r.set(KEYBOARD_UPDATE_LAST_ID_KEY, last_id)
+
+        except asyncio.CancelledError:
+            logger.info("Keyboard update worker остановлен.")
+            break
+        except Exception:
+            logger.exception("Ошибка в keyboard update worker, повтор через 5 сек.")
+            await asyncio.sleep(5)
+
+    await r.aclose()
+
+
+async def _leads_worker(bot: Bot) -> None:
     """Читает Redis Stream leads:notify и рассылает карточки лидов."""
     r = aioredis.from_url(settings.redis_url, decode_responses=False)
 
-    # Resume from last processed position; if none — start from current tail ($ = only new messages)
     saved = await r.get(WORKER_LAST_ID_KEY)
     last_id = saved if saved else b"$"
 
@@ -87,3 +151,11 @@ async def stream_worker(bot: Bot) -> None:
             await asyncio.sleep(5)
 
     await r.aclose()
+
+
+async def stream_worker(bot: Bot) -> None:
+    """Запускает оба воркера параллельно."""
+    await asyncio.gather(
+        _leads_worker(bot),
+        _keyboard_update_worker(bot),
+    )

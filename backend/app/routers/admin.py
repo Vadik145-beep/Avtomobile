@@ -6,7 +6,12 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.core.distributor import dispatch_lead_to_icebreaker_users, reset_exclusive_queue
+from app.core.distributor import (
+    dispatch_lead_to_icebreaker_users,
+    enqueue_user,
+    remove_user_from_queue,
+    reset_exclusive_queue,
+)
 from app.core.security import create_access_token, get_current_admin, verify_password
 from app.database import get_db
 from app.dependencies import get_redis
@@ -243,6 +248,9 @@ async def deduct_balance(
     return UserOut.model_validate(user)
 
 
+BOT_KEYBOARD_UPDATE_STREAM = "bot:keyboard_update"
+
+
 @router.post(
     "/users/{tg_id}/icebreaker",
     response_model=UserOut,
@@ -253,6 +261,7 @@ async def toggle_icebreaker(
     tg_id: int,
     body: IcebreakerToggleIn,
     db: AsyncSession = Depends(get_db),
+    redis=Depends(get_redis),
 ) -> UserOut:
     result = await db.execute(select(User).where(User.telegram_id == tg_id))
     user = result.scalar_one_or_none()
@@ -261,6 +270,17 @@ async def toggle_icebreaker(
     user.icebreaker_active = body.active
     await db.commit()
     await db.refresh(user)
+
+    if body.active:
+        await enqueue_user(tg_id, redis)
+    else:
+        await remove_user_from_queue(tg_id, redis)
+
+    await redis.xadd(
+        BOT_KEYBOARD_UPDATE_STREAM,
+        {"telegram_id": str(tg_id), "icebreaker_active": "1" if body.active else "0"},
+    )
+
     return UserOut.model_validate(user)
 
 

@@ -92,7 +92,8 @@ async def _dispatch_exclusive(lead: Lead, db: AsyncSession, redis: Redis) -> int
         user_result = await db.execute(
             select(User).where(
                 User.telegram_id == int(tg_id_str),
-                User.is_active == True,          # noqa: E712
+                User.is_active == True,           # noqa: E712
+                User.icebreaker_active == True,   # noqa: E712
                 User.limit_count >= 1,
             )
         )
