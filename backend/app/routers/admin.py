@@ -193,6 +193,7 @@ async def add_bonus(
     tg_id: int,
     body: BonusIn,
     db: AsyncSession = Depends(get_db),
+    redis=Depends(get_redis),
 ) -> UserOut:
     result = await db.execute(select(User).where(User.telegram_id == tg_id))
     user = result.scalar_one_or_none()
@@ -211,6 +212,11 @@ async def add_bonus(
     )
     await db.commit()
     await db.refresh(user)
+
+    # If icebreaker is active and balance just became positive — re-enqueue
+    if user.icebreaker_active and user.limit_count > 0:
+        await enqueue_user(user.telegram_id, redis)
+
     return UserOut.model_validate(user)
 
 
@@ -249,6 +255,7 @@ async def deduct_balance(
     )
     await db.commit()
     if user.limit_count <= 0:
+        await remove_user_from_queue(user.telegram_id, redis)
         await redis.xadd(BOT_KEYBOARD_UPDATE_STREAM, {
             "telegram_id": str(user.telegram_id),
             "icebreaker_active": "0",

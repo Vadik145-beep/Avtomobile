@@ -11,11 +11,11 @@ async def credit_limits(
     amount: int,
     payment_id: str,
     db: AsyncSession,
-) -> int:
+) -> tuple[int, bool]:
     """
     Atomically credit `amount` limits to the user identified by `tg_id`.
     Creates a Transaction record of type `purchase` with `payment_id` as the source.
-    Returns the new limit_count.
+    Returns (new_limit_count, icebreaker_active).
     Raises HTTP 404 if the user does not exist.
     """
     async with db.begin():
@@ -42,4 +42,4 @@ async def credit_limits(
             )
         )
 
-    return user.limit_count
+    return user.limit_count, user.icebreaker_active

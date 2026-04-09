@@ -97,7 +97,6 @@ def _validate_init_data(init_data: str) -> dict:
 async def register_user(
     body: UserCreate,
     db: AsyncSession = Depends(get_db),
-    redis=Depends(get_redis),
 ) -> UserOut:
     result = await db.execute(select(User).where(User.telegram_id == body.telegram_id))
     user = result.scalar_one_or_none()
@@ -111,8 +110,8 @@ async def register_user(
         db.add(user)
         await db.commit()
         await db.refresh(user)
-        # Добавляем нового пользователя в очередь exclusive-режима
-        await enqueue_user(body.telegram_id, redis)
+        # New user has no balance and icebreaker off — they will be enqueued
+        # automatically when they activate the icebreaker with a positive balance
     else:
         # Update mutable fields if provided
         changed = False
@@ -226,7 +225,6 @@ async def bot_stop_icebreaker(
 async def miniapp_get_user(
     x_telegram_init_data: str = Header(default="", alias="X-Telegram-Init-Data"),
     db: AsyncSession = Depends(get_db),
-    redis=Depends(get_redis),
 ) -> MiniAppUserOut:
     tg_user = _validate_init_data(x_telegram_init_data)
     tg_id = tg_user.get("id")
@@ -246,7 +244,7 @@ async def miniapp_get_user(
         db.add(user)
         await db.commit()
         await db.refresh(user)
-        await enqueue_user(tg_id, redis)
+        # New user has no balance — enqueue happens on first icebreaker activation
 
     return MiniAppUserOut(
         telegram_id=user.telegram_id,
@@ -265,6 +263,7 @@ async def miniapp_buy(
     body: MiniAppBuyIn,
     x_telegram_init_data: str = Header(default="", alias="X-Telegram-Init-Data"),
     db: AsyncSession = Depends(get_db),
+    redis=Depends(get_redis),
 ) -> MiniAppBuyOut:
     tg_user = _validate_init_data(x_telegram_init_data)
     tg_id = tg_user.get("id")
@@ -286,7 +285,7 @@ async def miniapp_buy(
 
     # Stub provider: no redirect needed, credit immediately
     if invoice.invoice_url is None:
-        new_limit = await credit_limits(
+        new_limit, icebreaker_active = await credit_limits(
             tg_id=tg_id,
             amount=invoice.amount,
             payment_id=invoice.payment_id,
@@ -296,6 +295,9 @@ async def miniapp_buy(
             "Stub purchase: tg_id=%s package=%s amount=%s new_limit=%s payment_id=%s",
             tg_id, body.package_id, invoice.amount, new_limit, invoice.payment_id,
         )
+        # Re-enqueue if icebreaker was active and balance just became positive
+        if icebreaker_active and new_limit > 0:
+            await enqueue_user(tg_id, redis)
         return MiniAppBuyOut(
             status="created",
             payment_id=invoice.payment_id,

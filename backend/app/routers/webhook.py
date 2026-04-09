@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.credit import credit_limits
-from app.core.distributor import dispatch_lead_to_icebreaker_users
+from app.core.distributor import dispatch_lead_to_icebreaker_users, enqueue_user
 from app.core.security import verify_lidozvon_token
 from app.database import get_db
 from app.dependencies import get_redis
@@ -108,6 +108,7 @@ async def receive_lidozvon(
 async def receive_payment(
     request: Request,
     db: AsyncSession = Depends(get_db),
+    redis=Depends(get_redis),
 ) -> dict[str, Any]:
     body = await request.json()
     logger.info("Payment webhook payload: %s", body)
@@ -128,7 +129,7 @@ async def receive_payment(
             detail="payment_not_verified",
         )
 
-    new_limit = await credit_limits(
+    new_limit, icebreaker_active = await credit_limits(
         tg_id=result.tg_id,
         amount=result.amount,
         payment_id=result.payment_id,
@@ -138,4 +139,9 @@ async def receive_payment(
         "Payment confirmed: tg_id=%s amount=%s payment_id=%s new_limit=%s",
         result.tg_id, result.amount, result.payment_id, new_limit,
     )
+
+    # Re-enqueue if icebreaker was active and balance just became positive
+    if icebreaker_active and new_limit > 0:
+        await enqueue_user(result.tg_id, redis)
+
     return {"ok": True, "credited": result.amount, "new_limit": new_limit}
