@@ -136,12 +136,16 @@ async def deliver_queued_leads_to_user(
     Deliver pending (not yet delivered) leads from the DB pool.
     Called when the user activates the icebreaker.
 
+    In pull_broadcast mode: no backlog is sent — the user receives only leads
+    that arrive after icebreaker_active becomes True.
+
     In pull_exclusive mode: distribute every undelivered lead through the
     round-robin queue (one lead per manager in order) instead of bulk-delivering
     all leads to the single user who pressed the button.
-
-    In pull_broadcast mode: deliver all undelivered leads directly to this user.
     """
+    if mode == LeadDeliveryMode.pull_broadcast:
+        return 0
+
     if mode == LeadDeliveryMode.pull_exclusive:
         # Find all approved leads not yet delivered to anyone
         delivered_ids_subq = select(LeadDelivery.lead_id).scalar_subquery()
