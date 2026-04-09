@@ -87,17 +87,24 @@ async def _keyboard_update_worker(bot: Bot) -> None:
                     try:
                         tg_id = int(data[b"telegram_id"])
                         icebreaker_active = data.get(b"icebreaker_active", b"0") == b"1"
+                        reason = data.get(b"reason", b"").decode()
                     except (KeyError, ValueError):
                         logger.warning("Некорректные поля keyboard_update: %s", data)
                         last_id = msg_id
                         await r.set(KEYBOARD_UPDATE_LAST_ID_KEY, last_id)
                         continue
 
-                    status_text = (
-                        "✅ Ледокол <b>запущен</b> администратором. Вы будете получать новые лиды."
-                        if icebreaker_active
-                        else "🛑 Ледокол <b>остановлен</b> администратором. Вы больше не будете получать лиды."
-                    )
+                    if reason == "balance_empty":
+                        status_text = (
+                            "💳 <b>Баланс закончился — ледокол прекратил свою работу.</b>\n\n"
+                            "Пополните баланс, чтобы снова получать лиды."
+                        )
+                    else:
+                        status_text = (
+                            "✅ Ледокол <b>запущен</b> администратором. Вы будете получать новые лиды."
+                            if icebreaker_active
+                            else "🛑 Ледокол <b>остановлен</b> администратором. Вы больше не будете получать лиды."
+                        )
                     try:
                         await bot.send_message(
                             chat_id=tg_id,

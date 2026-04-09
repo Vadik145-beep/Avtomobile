@@ -211,9 +211,10 @@ export default function Users() {
       title: 'Ледокол',
       dataIndex: 'icebreaker_active',
       width: 120,
-      render: (v) => (
-        <Tag color={v ? 'green' : 'default'}>{v ? 'Активен' : 'Не активен'}</Tag>
-      ),
+      render: (v, record) => {
+        const active = v && record.limit_count > 0
+        return <Tag color={active ? 'green' : 'default'}>{active ? 'Активен' : 'Не активен'}</Tag>
+      },
       filters: [
         { text: 'Активен', value: true },
         { text: 'Не активен', value: false },

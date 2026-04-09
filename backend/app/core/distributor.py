@@ -16,6 +16,15 @@ logger = logging.getLogger(__name__)
 
 REDIS_QUEUE_KEY = "queue:users"
 LEAD_NOTIFY_STREAM = "leads:notify"
+KEYBOARD_UPDATE_STREAM = "bot:keyboard_update"
+
+
+async def _notify_icebreaker_stopped_balance(user: User, redis: Redis) -> None:
+    await redis.xadd(KEYBOARD_UPDATE_STREAM, {
+        "telegram_id": str(user.telegram_id),
+        "icebreaker_active": "0",
+        "reason": "balance_empty",
+    })
 
 
 async def distribute_lead(lead: Lead, db: AsyncSession, redis: Redis) -> int:
@@ -67,6 +76,7 @@ async def _dispatch_broadcast(lead: Lead, db: AsyncSession, redis: Redis, notify
         user.limit_count -= 1
         if user.limit_count <= 0:
             user.icebreaker_active = False
+            await _notify_icebreaker_stopped_balance(user, redis)
         await _create_delivery_and_notify(user, lead, db, redis, source="icebreaker_broadcast", notify_delay=notify_delay)
         count += 1
 
@@ -109,6 +119,8 @@ async def _dispatch_exclusive(lead: Lead, db: AsyncSession, redis: Redis, notify
         user.limit_count -= 1
         if user.limit_count <= 0:
             await redis.lrem(REDIS_QUEUE_KEY, 0, tg_id_str)
+            user.icebreaker_active = False
+            await _notify_icebreaker_stopped_balance(user, redis)
         await _create_delivery_and_notify(user, lead, db, redis, source="icebreaker_exclusive", notify_delay=notify_delay)
         logger.info("pull_exclusive: lead %s dispatched to tg_id=%s", lead.id, tg_id_str)
         return 1
@@ -195,6 +207,7 @@ async def deliver_queued_leads_to_user(
         user.limit_count -= 1
         if user.limit_count <= 0:
             user.icebreaker_active = False
+            await _notify_icebreaker_stopped_balance(user, redis)
         await _create_delivery_and_notify(user, lead, db, redis, source="icebreaker_queue", notify_delay=notify_delay)
         dispatched += 1
 

@@ -224,6 +224,7 @@ async def deduct_balance(
     tg_id: int,
     body: DeductIn,
     db: AsyncSession = Depends(get_db),
+    redis=Depends(get_redis),
 ) -> UserOut:
     result = await db.execute(select(User).where(User.telegram_id == tg_id))
     user = result.scalar_one_or_none()
@@ -235,6 +236,8 @@ async def deduct_balance(
             detail=f"Недостаточно лимитов: доступно {user.limit_count}, запрошено {body.amount}",
         )
     user.limit_count -= body.amount
+    if user.limit_count <= 0:
+        user.icebreaker_active = False
     db.add(
         Transaction(
             user_id=user.id,
@@ -245,6 +248,12 @@ async def deduct_balance(
         )
     )
     await db.commit()
+    if user.limit_count <= 0:
+        await redis.xadd(BOT_KEYBOARD_UPDATE_STREAM, {
+            "telegram_id": str(user.telegram_id),
+            "icebreaker_active": "0",
+            "reason": "balance_empty",
+        })
     await db.refresh(user)
     return UserOut.model_validate(user)
 
