@@ -73,10 +73,10 @@ async def receive_lidozvon(
 
     lead = Lead(
         call_id=payload.call_id,
-        client_name=structured.get("name") or None,
+        client_name=structured.get("name") or structured.get("Имя") or structured.get("Имя клиента") or None,
         country_origin=_extract_country(structured, agreements),
-        timing=structured.get("timing") or None,
-        city=structured.get("city") or None,
+        timing=structured.get("timing") or structured.get("Сроки") or structured.get("Срок") or None,
+        city=structured.get("city") or structured.get("Город") or None,
         summary=payload.transcript,
         transcript=payload.transcript,
         phone_encrypted=payload.phone,
