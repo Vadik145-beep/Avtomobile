@@ -29,7 +29,7 @@ async def cmd_start(message: Message) -> None:
     greeting = first_name or "Пользователь"
     await message.answer(
         f"Привет, {greeting}! 👋\n\n"
-        "Добро пожаловать в <b>Авто-Лид</b> — сервис автомобильных лидов.\n\n"
+        "Добро пожаловать в <b>🚗 Лид Машина</b> — сервис автомобильных лидов.\n\n"
         f"{limit_text}\n\n"
         "Используйте кнопки ниже для навигации.",
         reply_markup=main_menu_keyboard(icebreaker_active=icebreaker_active),

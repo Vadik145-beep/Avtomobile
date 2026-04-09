@@ -33,7 +33,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Авто-Лид API",
+    title="🚗 Лид Машина API",
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",

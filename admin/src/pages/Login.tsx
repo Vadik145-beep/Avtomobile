@@ -43,7 +43,7 @@ export default function Login() {
       <Card style={{ width: 380, boxShadow: '0 4px 24px rgba(0,0,0,0.08)' }}>
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <Title level={3} style={{ margin: 0 }}>
-            Авто-Лид
+            🚗 Лид Машина
           </Title>
           <Typography.Text type="secondary">Панель администратора</Typography.Text>
         </div>
