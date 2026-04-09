@@ -17,16 +17,74 @@ from app.schemas.lead import LidozvonWebhookIn, LeadOut
 logger = logging.getLogger(__name__)
 
 
-def _extract_country(structured: dict, agreements: str | None) -> str | None:
+def _extract_country(structured: dict, agreements: str | None, transcript: str | None = None) -> str | None:
     explicit = structured.get("country") or structured.get("Страна")
     if explicit:
         return explicit
-    text = (agreements or "").lower()
-    if "корея" in text or "korean" in text:
-        return "Корея"
-    if "китай" in text or "china" in text or "китайск" in text:
-        return "Китай"
+    for text in [agreements, transcript]:
+        if not text:
+            continue
+        t = text.lower()
+        if "корея" in t or "korean" in t or "корей" in t or "кореи" in t:
+            return "Корея"
+        if "китай" in t or "china" in t or "китайск" in t:
+            return "Китай"
     return None
+
+
+def _parse_transcript(transcript: str | None) -> dict:
+    """Extract name, city, timing from call transcript when structured_data is missing."""
+    if not transcript:
+        return {}
+
+    result: dict = {}
+    lines = [ln.strip() for ln in transcript.split("\n") if ln.strip()]
+
+    for i, line in enumerate(lines):
+        if not line.startswith("AI:"):
+            continue
+
+        ai_lower = line.lower()
+
+        # Next user response (skip blank/AI lines, look at most 3 lines ahead)
+        next_user: str | None = None
+        for j in range(i + 1, min(i + 4, len(lines))):
+            if lines[j].startswith("User:"):
+                raw = lines[j][5:].strip().rstrip(".,!? ")
+                if raw:
+                    next_user = raw
+                break
+            if lines[j].startswith("AI:"):
+                break
+
+        if not next_user or len(next_user) > 120:
+            continue
+
+        # Name — AI asks how to address the caller
+        if ("обращаться" in ai_lower or "как к вам" in ai_lower or "как вас зовут" in ai_lower) \
+                and "name" not in result:
+            result["name"] = next_user
+
+        # City — overwrite so that the last answer wins (handles AI correction loops)
+        elif "каком городе" in ai_lower or "каком российском городе" in ai_lower:
+            result["city"] = next_user
+
+        # Country — AI asks Korea or China
+        elif ("кореи или китая" in ai_lower or "корея или китай" in ai_lower
+              or ("корея" in ai_lower and "китай" in ai_lower)):
+            lower_resp = next_user.lower()
+            if any(w in lower_resp for w in ("корея", "корей", "кореи", "korean")):
+                result["country"] = "Корея"
+            elif any(w in lower_resp for w in ("китай", "китайск", "china")):
+                result["country"] = "Китай"
+
+        # Timing — AI asks when the car is needed
+        elif "timing" not in result and "когда" in ai_lower and any(
+            w in ai_lower for w in ("машин", "автомобил", "авто", "получить", "сроки", "срок")
+        ):
+            result["timing"] = next_user
+
+    return result
 
 
 router = APIRouter(prefix="/webhook", tags=["webhook"])
@@ -71,12 +129,29 @@ async def receive_lidozvon(
     agreements = structured.get("agreements") or structured.get("Договорённости") or None
     about_client = structured.get("about_client") or structured.get("О клиенте") or None
 
+    # Structured_data may only contain `agreements` — fall back to transcript parsing
+    parsed = _parse_transcript(payload.transcript)
+    logger.info("Lidozvon transcript_parsed call_id=%s: %s", payload.call_id, parsed)
+
+    client_name = (
+        structured.get("name") or structured.get("Имя") or structured.get("Имя клиента")
+        or parsed.get("name") or None
+    )
+    city = structured.get("city") or structured.get("Город") or parsed.get("city") or None
+    timing = (
+        structured.get("timing") or structured.get("Сроки") or structured.get("Срок")
+        or parsed.get("timing") or None
+    )
+    country_origin = _extract_country(structured, agreements, payload.transcript)
+    if not country_origin and parsed.get("country"):
+        country_origin = parsed["country"]
+
     lead = Lead(
         call_id=payload.call_id,
-        client_name=structured.get("name") or structured.get("Имя") or structured.get("Имя клиента") or None,
-        country_origin=_extract_country(structured, agreements),
-        timing=structured.get("timing") or structured.get("Сроки") or structured.get("Срок") or None,
-        city=structured.get("city") or structured.get("Город") or None,
+        client_name=client_name,
+        country_origin=country_origin,
+        timing=timing,
+        city=city,
         summary=payload.transcript,
         transcript=payload.transcript,
         phone_encrypted=payload.phone,
